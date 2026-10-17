@@ -1,15 +1,15 @@
-# Planes de implementación
+# Implementation plans
 
-No hay planes activos. Cada plan corresponde a una SPEC aceptada en [specs/](../specs/README.md).
+There are no active plans. Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 
-Crear `NNN-nombre.md` usando el mismo ID y nombre que su SPEC:
+Create `NNN-name.md` using the same ID and name as its SPEC:
 
-- Enlace a la SPEC, estado, fecha y evidencia de aceptación.
-- Estado inicial, dependencias y archivos afectados.
-- Pasos ordenados con resultado esperado y progreso.
-- Riesgos, preservación de datos y estrategia de reversión si aplica.
-- Validación vinculada a cada criterio, con comandos o pasos manuales.
-- Resultados ejecutados, limitaciones y pendientes.
-- Cierre: actualización de SPEC, ARCHITECTURE y PROJECT_STATUS.
+- Link to the SPEC, status, date, and acceptance evidence.
+- Initial state, dependencies, and affected files.
+- Ordered steps with expected results and progress.
+- Risks, data preservation, and rollback strategy as applicable.
+- Validation tied to each criterion, with commands or manual steps.
+- Actual results, limitations, and outstanding work.
+- Closure: update SPEC, ARCHITECTURE, and PROJECT_STATUS.
 
-No marcar completado sin evidencia. Ajustes técnicos rutinarios se registran aquí; cambios del contrato vuelven al flujo de aceptación de [SDD.md](../SDD.md).
+Do not mark a plan complete without evidence. Record routine technical adjustments here; contract changes return to the acceptance workflow in [SDD.md](../SDD.md).

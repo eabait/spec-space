@@ -1,33 +1,33 @@
-# Estado del proyecto — empezar aquí
+# Project status — start here
 
-Actualizado: 2026-10-17. SpecSpace Desktop 0.1.0, MVP local macOS.
+Updated: 2026-10-17. SpecSpace Desktop 0.1.0, local macOS MVP.
 
-## Lectura de continuidad
+## Resume development
 
-Leer [AGENTS.md](AGENTS.md), [VISION.md](VISION.md), [SPEC.md](SPEC.md), [ARCHITECTURE.md](ARCHITECTURE.md) y [SDD.md](SDD.md); luego el incremento pertinente de [specs](specs/README.md) y [plans](plans/README.md).
+Read [AGENTS.md](AGENTS.md), [VISION.md](VISION.md), [SPEC.md](SPEC.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [SDD.md](SDD.md). Then read the relevant increment in [specs](specs/README.md) and [plans](plans/README.md).
 
-## Estado real
+## Current state
 
-- MVP implementado: carpetas locales, pestañas, CodeMirror, preview Markdown/Mermaid, guardado y protección de cambios pendientes.
-- Apertura principal nativa File → Open Folder… con ⌘O; botón superior derecho eliminado.
-- Baseline documentada; no hay incremento SDD activo ni próximo desarrollo aceptado.
-- Repositorio: `/Users/estebanabait/Documents/Projects/spec-space` (Projects en plural).
-- Baseline inicial en main, identificada por el tag anotado `v0.1.0` (release local 0.1). Consultar `git log -1` y `git status` al retomar.
+- MVP implemented: local folders, tabs, CodeMirror, Markdown/Mermaid preview, saving, and protection for pending edits.
+- Native primary action: File → Open Folder… with ⌘O; the upper-right button is removed.
+- Baseline documented; no active SDD increment or accepted upcoming work.
+- Repository: `/Users/estebanabait/Documents/Projects/spec-space`.
+- Initial baseline is on `main`, identified by the annotated tag `v0.1.0`. Check `git log` and `git status` before resuming.
 
-## Evidencia de validación
+## Validation evidence
 
-- MVP: 5 tests TypeScript y 3 tests Rust aprobados; build frontend y bundle macOS release aprobados.
-- Pruebas nativas: carpeta, pestañas, edición, guardado, avisos de cierre; preview y etiquetas Mermaid revisados visualmente.
-- Cambio de menú: compilación release y formato aprobados; File → Open Folder… comprobado en la app, abre el selector.
-- Se detectaron instancias antiguas debug/release: verificar la versión abierta al validar. Bundle actual: `src-tauri/target/release/bundle/macos/SpecSpace.app`.
-- Rust se instaló temporalmente en `/private/tmp`; instrucciones en README. No asumir que sigue disponible.
+- MVP: 5 TypeScript tests and 3 Rust tests passed; frontend build and macOS release bundle succeeded.
+- Native checks covered folder picking, tabs, editing, saving, and close prompts; preview and Mermaid labels were visually checked.
+- Menu change: release build and formatting passed; File → Open Folder… was verified in the app and opened the folder picker.
+- Older debug and release instances were found; verify which version is running. Current bundle: `src-tauri/target/release/bundle/macos/SpecSpace.app`.
+- Rust was installed temporarily under `/private/tmp`; see README. Do not assume it remains available.
 
-## Límites y siguiente paso
+## Limits and next step
 
-No hay creación de archivos, autosave, recuperación de sesión, watcher, Git UI ni colaboración. Ver SPEC para límites de guardado y preview.
+There is no file creation, autosave, session recovery, file watcher, Git UI, or collaboration. See SPEC for saving and preview limits.
 
-El siguiente cambio debe comenzar con `specs/001-<nombre>.md`, aceptar su alcance y crear el plan homónimo antes de implementar. No hay prioridad funcional acordada: definirla con el usuario. No publicar ni crear commits como parte implícita de la documentación.
+The next change starts with `specs/001-<name>.md`; accept its scope and create the matching plan before implementation. No feature priority is agreed; define it with the user. Do not publish or create commits as an implicit part of documentation work.
 
-## Última tarea
+## Latest task
 
-El usuario solicitó el commit inicial y marcar la release 0.1. Se conserva la versión técnica 0.1.0 y se identifica con el tag anotado `v0.1.0`. Alcance: MVP y documentación SDD. No se publica una release de GitHub ni se hace push en esta tarea. Se excluyen dependencias, bundles y esquemas generados de Tauri del control de versiones. Las validaciones nativas indicadas arriba corresponden a tareas previas.
+The user requested SDD: separate sources of truth, concise AGENTS guidance, and progressive disclosure. This task documents the existing baseline; it does not change product behavior.

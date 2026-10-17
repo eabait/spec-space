@@ -1,17 +1,17 @@
-# Especificaciones incrementales
+# Incremental specifications
 
-No hay incrementos activos. La baseline previa al flujo se documenta en [SPEC.md](../SPEC.md).
+There are no active increments. The baseline predating this workflow is documented in [SPEC.md](../SPEC.md).
 
-Seguir [SDD.md](../SDD.md). Crear `NNN-nombre.md` con esta estructura mínima:
+Follow [SDD.md](../SDD.md). Create `NNN-name.md` with this minimum structure:
 
-- Título, ID, estado y fecha.
-- Problema y resultado esperado.
-- Relación con VISION: alineada, concreta o propone cambiarla.
-- Alcance y exclusiones.
-- Comportamiento y contrato de datos; seguridad/preservación cuando corresponda.
-- Criterios de aceptación verificables y validación prevista.
-- Decisiones abiertas, riesgos y alternativas relevantes.
-- Aceptación: fecha y evidencia explícita del usuario, pendiente hasta existir.
-- Enlace al plan homónimo y evidencia de cierre.
+- Title, ID, status, and date.
+- Problem and intended outcome.
+- Relationship to VISION: aligned, refines, or changes it.
+- Scope and exclusions.
+- Behavior and data contract; security and preservation as applicable.
+- Verifiable acceptance criteria and planned validation.
+- Open decisions, risks, and relevant alternatives.
+- Acceptance: date and explicit user evidence; pending until it exists.
+- Link to the matching plan and closure evidence.
 
-Mantener propuestas separadas del contrato vigente. Primera numeración disponible: 001; verificar antes de asignarla.
+Keep proposals separate from the current contract. The next available number is 001; verify before assigning it.

@@ -1,6 +1,6 @@
 # SpecSpace Desktop
 
-A focused, local Markdown workspace for software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Mermaid. No account, server, cloud integration, or collaboration service.
+A focused local Markdown workspace for software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Mermaid. No account, server, cloud integration, or collaboration service.
 
 ## Run on macOS
 
@@ -21,9 +21,9 @@ Creates `src-tauri/target/release/bundle/macos/SpecSpace.app`. This local build 
 
 `npm run dev` runs only the browser UI; local filesystem operations require the desktop app.
 
-### Temporary validation toolchain on this machine
+### Temporary validation toolchain
 
-The initial implementation was verified with Rust installed under `/private/tmp`, without changing shell configuration. Until that temporary directory is removed, you can run:
+The initial implementation was verified with Rust installed under `/private/tmp`, without changing shell configuration. If that temporary toolchain is still present, run:
 
 ```sh
 export RUSTUP_HOME=/private/tmp/spec-space-rustup
@@ -34,14 +34,14 @@ npm run tauri dev
 
 For ongoing development, install Rust normally. If npm reports a cache permission error, use `npm ci --cache /private/tmp/spec-space-npm-cache`.
 
-## Documentación del proyecto
+## Project documentation
 
-Empezar por [PROJECT_STATUS.md](PROJECT_STATUS.md) para retomar desarrollo y por [AGENTS.md](AGENTS.md) para convenciones.
+Start with [PROJECT_STATUS.md](PROJECT_STATUS.md) to resume development and [AGENTS.md](AGENTS.md) for project conventions.
 
-- [VISION.md](VISION.md): dirección revisable.
-- [SPEC.md](SPEC.md): producto vigente y límites.
-- [ARCHITECTURE.md](ARCHITECTURE.md): implementación actual.
-- [SDD.md](SDD.md): proceso de cambios; [specs/](specs/README.md) y [plans/](plans/README.md).
+- [VISION.md](VISION.md): revisable direction.
+- [SPEC.md](SPEC.md): current product and scope.
+- [ARCHITECTURE.md](ARCHITECTURE.md): current implementation.
+- [SDD.md](SDD.md): change workflow; see [specs/](specs/README.md) and [plans/](plans/README.md).
 
 ## Checks
 

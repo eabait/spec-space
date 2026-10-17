@@ -1,37 +1,37 @@
-# Arquitectura actual
+# Current architecture
 
-Baseline: 2026-10-17. Aplicación local Tauri 2, React 19, TypeScript y Vite.
+Baseline: 2026-10-17. Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
-## Componentes y límites
+## Components and boundaries
 
-| Componente                                    | Responsabilidad                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------- |
-| `src/App.tsx`                                 | Workspace, explorador lazy, pestañas, modos, prompts y coordinación de comandos |
-| `src/Editor.tsx`                              | Instancias CodeMirror 6, historial por pestaña y eventos de edición             |
-| `src/text.ts`                                 | Aplicación de cambios sobre texto original y resolución de enlaces relativos    |
-| `src/Preview.tsx`                             | React Markdown, GFM, frontmatter omitido, Mermaid en cola y SVG sanitizado      |
-| `src/styles.css`                              | Presentación y adaptación de layout                                             |
-| `src-tauri/src/lib.rs`                        | Workspace autorizado, selector nativo, lectura, guardado, menús y cierre        |
-| `src-tauri/tauri.conf.json`                   | Ventana, CSP y empaquetado                                                      |
-| `src-tauri/capabilities/default.json`         | Capacidades mínimas de ventana                                                  |
-| `tests/text.test.ts` y tests Rust en `lib.rs` | Preservación de texto, enlaces y límites de filesystem                          |
+| Component                                       | Responsibility                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `src/App.tsx`                                   | Workspace, lazy explorer, tabs, modes, prompts, and command coordination              |
+| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, and edit events                              |
+| `src/text.ts`                                   | Applying changes to original text and resolving relative links                        |
+| `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Mermaid rendering, and sanitized SVG |
+| `src/styles.css`                                | Presentation and responsive layout                                                    |
+| `src-tauri/src/lib.rs`                          | Authorized workspace, native picker, reading, saving, menus, and closing              |
+| `src-tauri/tauri.conf.json`                     | Window, CSP, and bundling                                                             |
+| `src-tauri/capabilities/default.json`           | Minimal window capabilities                                                           |
+| `tests/text.test.ts` and Rust tests in `lib.rs` | Text preservation, links, and filesystem boundaries                                   |
 
-## Datos y operaciones
+## Data and operations
 
-Rust mantiene `Mutex<Option<PathBuf>>`: una raíz canonicalizada seleccionada por diálogo nativo. React mantiene documentos abiertos con `content`, `saved`, `revision` y una generación para recrear el editor al recargar. No se persiste sesión ni se usa base de datos.
+Rust maintains `Mutex<Option<PathBuf>>`: a canonicalized root selected through the native dialog. React tracks open documents with `content`, `saved`, `revision`, and a generation used to recreate the editor after reload. The session is not persisted and no database is used.
 
-Comandos IPC: `choose_workspace`, `list_directory`, `open_document`, `write_document`. React no dispone de una API general de filesystem. Rust resuelve rutas relativas, rechaza componentes symlink y exige contención en la raíz.
+IPC commands: `choose_workspace`, `list_directory`, `open_document`, and `write_document`. React has no general filesystem API. Rust resolves relative paths, rejects symlink components, and requires containment within the root.
 
-La apertura devuelve texto UTF-8 y SHA-256. El editor aplica cambios al texto original conservando BOM y finales no editados. Guardar comprueba revisión, escribe y sincroniza un temporal junto al destino, vuelve a comprobar y renombra. Hay una ventana de concurrencia entre comprobación y rename; no se promete bloqueo contra escritores externos.
+Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies changes to the original text while preserving the BOM and untouched line endings. Saving checks the revision, writes and syncs a temporary file next to the destination, checks again, then renames it. A concurrency window remains between the final check and rename; external writers are not locked out.
 
-## Menús y ciclo de vida
+## Menus and lifecycle
 
-File → Open Folder… emite `open-folder-requested` a la ventana principal. El listener React usa el mismo flujo protegido de apertura que la bienvenida. ⌘O se registra nativamente; el handler web es solo fallback de navegador. Cierre y salida pasan por la protección de documentos sucios. Force quit no puede proteger cambios en memoria.
+File → Open Folder… emits `open-folder-requested` to the main window. The React listener uses the same guarded open flow as the welcome screen. ⌘O is registered natively; the web handler is only a browser fallback. Closing the window or quitting uses the unsaved-document guard. Force quit cannot protect edits in memory.
 
-## Preview y seguridad
+## Preview and security
 
-La vista previa no modifica el fuente. HTML deshabilitado; Mermaid en modo estricto con etiquetas SVG y DOMPurify; diagramas sin enlaces, imágenes ni foreignObject. CSP restringe recursos remotos. El alcance exacto y límites funcionales están en SPEC.
+The preview never changes the source. HTML is disabled. Mermaid runs in strict mode; SVG is sanitized with DOMPurify, and diagrams exclude links, images, and `foreignObject`. CSP restricts remote resources. See SPEC for the exact product scope and limits.
 
-## Mantenibilidad
+## Maintainability
 
-App y lib concentran actualmente la coordinación del MVP. Separar gestión de workspace, pestañas o servicio de archivos cuando un incremento lo necesite; no introducir capas por anticipación. Nuevas reglas de disco pertenecen a Rust y nuevas transformaciones de texto deben conservar pruebas de preservación.
+`App.tsx` and `lib.rs` currently coordinate the MVP. Split workspace, tab, or file-service responsibilities when an increment calls for it; avoid speculative layers. New disk rules belong in Rust, and text transformations must retain preservation tests.

@@ -1,16 +1,14 @@
-# SpecSpace — producto vigente
+# SpecSpace — current product
 
-Estado: baseline implementada, documentada el 2026-10-17.
-Esta especificación describe el MVP existente; no implica una aceptación retrospectiva de un proceso SDD que todavía no existía.
-Es la fuente de verdad del comportamiento vigente. Las propuestas viven en `specs/` hasta implementarse y validarse.
+Status: implemented baseline, documented on 2026-10-17. This specification describes the existing MVP; it does not imply retrospective acceptance under an SDD process that did not yet exist. It is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
-## Propósito y modelo de documentos
+## Purpose and document model
 
-Editor desktop local de especificaciones técnicas para macOS. Un workspace es una carpeta elegida por el usuario; cada documento es un archivo UTF-8 `.md` o `.markdown` existente. Una pestaña mantiene su texto, versión guardada y revisión en disco. Los diagramas Mermaid son bloques del mismo Markdown, no documentos separados. No hay base de datos ni formato propietario.
+A local desktop editor for technical specifications on macOS. A workspace is a folder selected by the user; each document is an existing UTF-8 `.md` or `.markdown` file. A tab tracks its text, saved version, and on-disk revision. Mermaid diagrams are blocks in the same Markdown file, not separate documents. There is no database or proprietary format.
 
-## Funcionalidad vigente
+## Current functionality
 
-La apertura principal es **File → Open Folder…** (⌘O), en el menú nativo. No existe el botón superior derecho. Se conserva la apertura desde la bienvenida y la barra de pestañas.
+The primary open action is **File → Open Folder…** (⌘O), in the native menu. The upper-right button has been removed. Opening from the welcome screen and tab bar remains available.
 
 - Native folder picker; lazily expanded directory explorer with refresh and filename filtering within expanded folders.
 - Multiple document tabs, dirty indicators, independent editor undo histories, and source / split / preview layouts.
@@ -18,7 +16,7 @@ La apertura principal es **File → Open Folder…** (⌘O), en el menú nativo.
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced Mermaid rendering with inline errors.
 - Relative Markdown links navigate within the workspace.
 - Explicit save, reload from disk, and save/discard/cancel protection on tab close, workspace switch, window close, and normal application quit.
-- `⌘O` open workspace, `⌘S` save, `⌘W` close current tab, `⌘Q` quit; CodeMirror's `⌘F` searches the active document.
+- `⌘O` opens a workspace, `⌘S` saves, `⌘W` closes the current tab, and `⌘Q` quits; CodeMirror's `⌘F` searches the active document.
 
 ## Content and filesystem guarantees
 
@@ -30,17 +28,17 @@ A save checks a SHA-256 revision against the current file, writes and syncs a sa
 
 Preview HTML is disabled. Mermaid uses strict mode and sanitized SVG; image and navigation elements are removed from diagrams. Remote images, arbitrary external links, and embedded resources are disabled. No general-purpose filesystem or shell permission is granted to the webview.
 
-## Límites actuales
+## Current limits
 
 Existing files only: create, rename, and delete files using Finder or your existing tools, then refresh. There is no auto-save, crash recovery, session restore, file watcher, Git UI, cloud sync, or remote collaboration. A clean open tab does not automatically refresh after external edits; use **Reload from disk**. Force quit and power loss cannot show a pending-change prompt. Images and non-Markdown attachments are not rendered yet. Scroll positions in source and preview are independent. Frontmatter stays editable in source and is omitted from the rendered preview; there is no separate metadata UI.
 
-## Criterios de aceptación de la baseline
+## Baseline acceptance criteria
 
-- Abrir una carpeta y navegar documentos en pestañas sin modificar archivos por abrirlos.
-- Editar, guardar y reabrir el contenido; conservar sintaxis y texto no editado.
-- Renderizar Markdown y Mermaid; mostrar errores del diagrama sin perder el editor.
-- Rechazar una escritura si cambió la revisión en disco; mantener los cambios en memoria.
-- Ofrecer guardar, descartar o cancelar ante cambios pendientes al cerrar o cambiar workspace.
-- Rechazar traversal, symlinks, archivos no UTF-8 y operaciones fuera del workspace.
+- Open a folder and browse documents in tabs without changing files merely by opening them.
+- Edit, save, and reopen content while preserving syntax and untouched text.
+- Render Markdown and Mermaid; show diagram errors without losing the editor.
+- Reject a write if the on-disk revision changed; keep edits in memory.
+- Offer save, discard, or cancel for pending changes when closing or switching workspaces.
+- Reject path traversal, symlinks, non-UTF-8 files, and operations outside the workspace.
 
-La evidencia disponible y sus límites se registran en [PROJECT_STATUS.md](PROJECT_STATUS.md).
+Available evidence and its limits are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).

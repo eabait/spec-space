@@ -23,11 +23,11 @@ flowchart LR
 - [x] Preview diagrams
 - [ ] Review with your team using your existing Git workflow
 
-| Concern       | Approach                 |
-| ------------- | ------------------------ |
-| Storage       | Local UTF-8 Markdown     |
-| Collaboration | External Git workflow    |
-| Ownership     | Your files, your folders |
+| Concern         | Approach                   |
+| --------------- | -------------------------- |
+| Storage         | Local UTF-8 Markdown       |
+| Version control | Your existing Git workflow |
+| Ownership       | Your files, your folders   |
 
 <!-- Comments and frontmatter remain in the source. -->
 

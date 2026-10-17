@@ -1,40 +1,40 @@
-# SpecSpace — entrada para agentes y colaboradores
+# SpecSpace — contributor and agent entry point
 
-## Retomar una tarea
+## Resuming a task
 
-1. Leer [PROJECT_STATUS.md](PROJECT_STATUS.md): estado, evidencia y siguiente paso.
-2. Inspeccionar `git status --short --branch` y cambios locales; preservar trabajo existente.
-3. Leer [VISION.md](VISION.md), [SPEC.md](SPEC.md) y [ARCHITECTURE.md](ARCHITECTURE.md).
-4. Buscar el incremento relevante en [specs/](specs/README.md) y su [plan](plans/README.md).
-5. Seguir el [flujo SDD](SDD.md); el repositorio prevalece sobre recuerdos de chats.
+1. Read [PROJECT_STATUS.md](PROJECT_STATUS.md): current status, evidence, and next steps.
+2. Inspect `git status --short --branch` and local changes; preserve existing work.
+3. Read [VISION.md](VISION.md), [SPEC.md](SPEC.md), and [ARCHITECTURE.md](ARCHITECTURE.md).
+4. Find the relevant increment in [specs/](specs/README.md) and its [plan](plans/README.md).
+5. Follow the [SDD workflow](SDD.md); the repository takes precedence over chat history.
 
-## Fuentes de verdad
+## Sources of truth
 
-- VISION: norte revisable, no promesas de implementación.
-- SPEC: producto vigente, no propuestas futuras.
-- ARCHITECTURE: implementación actual y límites entre componentes.
-- specs/: contratos incrementales y decisiones de aceptación.
-- plans/: pasos y evidencia de ejecución de cada incremento.
-- PROJECT_STATUS: punto de entrada para una tarea nueva; mantenerlo breve y actual.
-- [README](README.md): instalación, ejecución y comandos de validación.
+- VISION: revisable direction, not implementation promises.
+- SPEC: current product, not future proposals.
+- ARCHITECTURE: current implementation and component boundaries.
+- specs/: incremental contracts and acceptance decisions.
+- plans/: steps and implementation evidence for each increment.
+- PROJECT_STATUS: entry point for a new task; keep it concise and current.
+- [README](README.md): setup, usage, and validation commands.
 
-## Convenciones esenciales
+## Core conventions
 
-- No implementar un incremento sin SPEC aceptada y plan registrado.
-- La aceptación debe provenir del usuario; no inferirla del estado del código.
-- No volver a pedir autorización que ya esté explícita en la tarea; registrar la evidencia.
-- No descartar, sobrescribir ni consolidar cambios ajenos sin autorización.
-- No publicar, notarizar ni desplegar por defecto. Validar localmente.
-- TypeScript estricto, React funcional, Prettier y `cargo fmt`.
-- Nombres de código en inglés; documentación de gestión en español.
-- React gestiona interacción; Rust valida acceso a disco y guardado.
-- Preservar Markdown fuente; nunca guardar una conversión de la vista previa.
-- No ampliar permisos del webview ni cargar recursos remotos sin un contrato explícito.
-- Preferir responsabilidades pequeñas y extraer módulos cuando el cambio lo justifique.
-- Probar comportamiento y riesgos reales, no detalles internos de implementación.
-- Verificar qué ejecutable está abierto antes de validar macOS: debug y release pueden coexistir.
-- No cerrar sesiones con trabajo del usuario para probar una compilación.
+- All code and documentation must be written in English.
+- Do not implement an increment without an accepted SPEC and a recorded plan.
+- The user must accept the SPEC; never infer acceptance from the code.
+- Do not ask again for authorization already explicit in the task; record the evidence.
+- Do not discard, overwrite, or consolidate existing work without authorization.
+- Do not publish, notarize, or deploy by default. Validate locally.
+- Use strict TypeScript, functional React, Prettier, and `cargo fmt`.
+- React handles interaction; Rust validates filesystem access and saving.
+- Preserve Markdown source; never save a conversion of the preview.
+- Do not expand webview permissions or load remote resources without an explicit contract.
+- Prefer small responsibilities and extract modules when a change warrants it.
+- Test real behavior and risks, not implementation details.
+- Verify which executable is open before macOS validation; debug and release builds can coexist.
+- Do not close sessions containing user work to test a build.
 
-## Divulgación progresiva
+## Progressive disclosure
 
-Este archivo debe mantenerse por debajo de 100 líneas. Leer documentos específicos según la tarea, no todo el repositorio de forma indiscriminada. Crear `CODING_CONVENTIONS.md`, `BEST_PRACTICES.md` u otras guías solo cuando haya reglas concretas que no quepan aquí; enlazarlas desde esta entrada y evitar duplicaciones.
+Keep this file under 100 lines. Read task-specific documents instead of indiscriminately reading the entire repository. Create `CODING_CONVENTIONS.md`, `BEST_PRACTICES.md`, or other guides only when concrete rules warrant them; link them here and avoid duplication.

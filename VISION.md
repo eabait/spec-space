@@ -1,253 +1,203 @@
 # SpecSpace — Product Vision
 
-> Estado: Visión estratégica revisable.
-> Define el norte del producto, no el alcance comprometido.
-> La fuente de verdad del producto vigente es `SPEC.md`.
+> Status: Revisable strategic vision.
+> Defines the product direction, not committed scope.
+> `SPEC.md` is the source of truth for the current product.
 
-## 1. Propósito
+## 1. Purpose
 
-SpecSpace busca transformar la manera en que los equipos de
-ingeniería de software crean, comprenden, evolucionan y utilizan
-sus especificaciones técnicas.
+SpecSpace aims to transform how software engineering teams create, understand, evolve, and use technical specifications.
 
-Su objetivo es convertir la documentación de software en un
-espacio de trabajo vivo, navegable y conectado, donde requisitos,
-decisiones de arquitectura, diagramas y soluciones técnicas
-puedan desarrollarse y mantenerse con claridad.
+Its goal is to turn software documentation into a living, navigable, connected workspace where requirements, architectural decisions, diagrams, and technical solutions can be developed and maintained clearly.
 
-Los documentos no deberían ser simplemente archivos para leer,
-sino artefactos que ayuden a pensar, diseñar, colaborar y
-construir software.
+Documents should be more than files to read: they should help people think, design, collaborate, and build software.
 
-## 2. Problema que queremos resolver
+## 2. The problem we want to solve
 
-Las especificaciones de software suelen estar fragmentadas
-en múltiples documentos, carpetas y herramientas.
+Software specifications are often fragmented across documents, folders, and tools.
 
-Esto genera dificultades para:
+This makes it difficult to:
 
-- Comprender rápidamente el alcance de un proyecto.
-- Navegar entre requisitos funcionales y no funcionales.
-- Interpretar arquitecturas y diagramas técnicos.
-- Identificar relaciones y dependencias entre especificaciones.
-- Mantener coherencia cuando el proyecto evoluciona.
-- Detectar inconsistencias, ambigüedades y omisiones.
-- Conectar las decisiones de diseño con su implementación.
-- Utilizar especificaciones como entrada para procesos
-  de desarrollo asistidos por inteligencia artificial.
+- Quickly understand a project's scope.
+- Navigate functional and non-functional requirements.
+- Interpret architectures and technical diagrams.
+- Identify relationships and dependencies between specifications.
+- Maintain consistency as a project evolves.
+- Detect inconsistencies, ambiguities, and omissions.
+- Connect design decisions to their implementation.
+- Use specifications as input for AI-assisted development processes.
 
-Los editores tradicionales resuelven la escritura, pero
-no necesariamente la comprensión integral del sistema
-que se está especificando.
+Traditional editors solve the writing problem, but do not necessarily help users understand the system as a whole.
 
-## 3. Visión
+## 3. Vision
 
-Ser un workspace especializado en especificaciones de software,
-donde los equipos puedan pasar naturalmente de documentos
-aislados a una representación comprensible, conectada y
-evolutiva de un sistema.
+Become a workspace dedicated to software specifications, where teams can move naturally from isolated documents to an understandable, connected, evolving representation of a system.
 
-SpecSpace aspira a combinar tres capacidades:
+SpecSpace aspires to combine three capabilities:
 
 ### Write
 
-Una experiencia de edición fluida, clara y especializada
-en documentación de ingeniería.
+A clear, fluid editing experience tailored to engineering documentation.
 
-Escribir y mantener especificaciones debería ser simple,
-sin introducir complejidad innecesaria.
+Writing and maintaining specifications should be simple, without unnecessary complexity.
 
 ### Understand
 
-Permitir comprender un proyecto más allá de cada documento
-individual.
+Help users understand a project beyond any individual document.
 
-Navegar entre requisitos, componentes, diagramas,
-decisiones y dependencias, conservando el contexto.
+Navigate requirements, components, diagrams, decisions, and dependencies while preserving context.
 
 ### Evolve
 
-Facilitar la evolución de las especificaciones y su
-utilización durante todo el ciclo de desarrollo.
+Support the evolution of specifications and their use throughout the development lifecycle.
 
-Ayudar a identificar cambios, inconsistencias e impactos,
-manteniendo la trazabilidad entre decisiones, alcance
-y artefactos técnicos.
+Help identify changes, inconsistencies, and impacts while maintaining traceability between decisions, scope, and technical artifacts.
 
-## 4. Usuarios objetivo
+## 4. Target users
 
-SpecSpace está pensado principalmente para profesionales
-que participan en la definición y evolución de soluciones
-de software:
+SpecSpace is primarily for professionals involved in defining and evolving software solutions:
 
-- Software Architects y Solution Architects.
-- Technical Leads y Software Engineers.
-- Business Analysts y Product Owners.
-- Equipos de ingeniería que utilizan Spec-Driven Development.
-- Equipos que utilizan agentes de IA durante el SDLC.
+- Software and Solution Architects.
+- Technical Leads and Software Engineers.
+- Business Analysts and Product Owners.
+- Engineering teams using Spec-Driven Development.
+- Teams using AI agents during the software development lifecycle (SDLC).
 
-El foco está en personas que necesitan tanto escribir
-especificaciones como comprender las relaciones entre ellas.
+The focus is on people who need to write specifications and understand the relationships between them.
 
-## 5. Principios de producto
+## 5. Product principles
 
-### 5.1. Open by design
+### 5.1 Open by design
 
-Los documentos pertenecen al usuario.
+The documents belong to the user.
 
-Priorizar formatos abiertos, portables y compatibles
-con herramientas externas.
+Prioritize open, portable formats that work with external tools.
 
-Markdown es el formato principal para las especificaciones.
+Markdown is the primary format for specifications.
 
-### 5.2. Local-first
+### 5.2 Local-first
 
-La experiencia principal debe poder funcionar localmente,
-sin requerir servicios remotos para operaciones esenciales.
+The core experience should work locally, without requiring remote services for essential operations.
 
-Las integraciones externas deben ampliar las capacidades
-del producto, no convertirse en dependencias innecesarias.
+External integrations should extend the product, not become unnecessary dependencies.
 
-### 5.3. Documentation as a living system
+### 5.3 Documentation as a living system
 
-Las especificaciones evolucionan junto con el software.
+Specifications evolve alongside software.
 
-SpecSpace debe facilitar su comprensión, mantenimiento
-y evolución continua.
+SpecSpace should support their understanding, maintenance, and continuous evolution.
 
-### 5.4. Structured without rigidity
+### 5.4 Structured without rigidity
 
-Permitir incorporar estructura, referencias y trazabilidad
-sin imponer formatos propietarios ni convenciones
-innecesariamente restrictivas.
+Allow users to add structure, references, and traceability without imposing proprietary formats or unnecessarily restrictive conventions.
 
-### 5.5. Human-centered, AI-augmented
+### 5.5 Human-centered, AI-augmented
 
-La inteligencia artificial puede ayudar a comprender,
-validar y evolucionar especificaciones.
+Artificial intelligence can help users understand, validate, and evolve specifications.
 
-Sin embargo, el usuario mantiene el control sobre
-los documentos y las decisiones.
+The user remains in control of the documents and decisions.
 
-### 5.6. Focus over complexity
+### 5.6 Focus over complexity
 
-Priorizar una experiencia especializada, sencilla
-y consistente.
+Prioritize a focused, simple, consistent experience.
 
-SpecSpace no busca convertirse en un IDE generalista,
-un gestor de proyectos o una plataforma ALM completa.
+SpecSpace is not intended to become a general-purpose IDE, project manager, or full ALM platform.
 
-## 6. Horizontes de evolución
+## 6. Evolution horizons
 
-Los siguientes horizontes representan posibles
-direcciones de evolución, no compromisos de implementación.
+The following horizons describe possible directions, not implementation commitments.
 
-### Horizonte 1 — Authoring Workspace
+### Horizon 1 — Authoring Workspace
 
-Construir una experiencia excelente de edición y
-visualización de especificaciones técnicas.
+Build an excellent experience for editing and viewing technical specifications.
 
-Áreas de interés:
+Areas of interest:
 
-- Edición Markdown.
-- Visualización y edición de diagramas.
-- Navegación entre documentos.
-- Organización de proyectos.
-- Experiencia desktop fluida.
+- Markdown editing.
+- Diagram viewing and editing.
+- Document navigation.
+- Project organization.
+- A fluid desktop experience.
 
-### Horizonte 2 — Connected Specifications
+### Horizon 2 — Connected Specifications
 
-Evolucionar desde documentos independientes hacia
-especificaciones relacionadas.
+Evolve from independent documents toward related specifications.
 
-Áreas de interés:
+Areas of interest:
 
-- Referencias cruzadas.
-- Identificación de requisitos.
-- Dependencias entre componentes.
-- Navegación contextual.
-- Visualización de relaciones entre artefactos.
-- Análisis de impacto de cambios.
+- Cross-references.
+- Requirements identification.
+- Dependencies between components.
+- Contextual navigation.
+- Visualizing relationships between artifacts.
+- Change impact analysis.
 
-### Horizonte 3 — Intelligent Specifications
+### Horizon 3 — Intelligent Specifications
 
-Incorporar capacidades inteligentes que ayuden a
-comprender y mejorar las especificaciones.
+Add intelligent capabilities to help users understand and improve specifications.
 
-Áreas de interés:
+Areas of interest:
 
-- Detección de ambigüedades.
-- Identificación de inconsistencias.
-- Análisis de completitud.
-- Asistencia en redacción y revisión.
-- Comprensión de arquitecturas y requisitos.
-- Análisis de impacto asistido por IA.
+- Ambiguity detection.
+- Inconsistency identification.
+- Completeness analysis.
+- Writing and review assistance.
+- Understanding architectures and requirements.
+- AI-assisted impact analysis.
 
-### Horizonte 4 — Specifications to Execution
+### Horizon 4 — Specifications to Execution
 
-Explorar cómo conectar las especificaciones con
-la planificación y construcción de software.
+Explore connections between specifications and software planning and implementation.
 
-Áreas de interés:
+Areas of interest:
 
-- Derivación de artefactos técnicos.
-- Grafos de dependencias.
-- Estimación del esfuerzo de implementación.
-- Trazabilidad entre requisitos, arquitectura y código.
-- Integración con workflows de desarrollo agentic.
-- Validación de implementación contra especificaciones.
+- Deriving technical artifacts.
+- Dependency graphs.
+- Implementation effort estimation.
+- Traceability between requirements, architecture, and code.
+- Integration with agentic development workflows.
+- Validating implementations against specifications.
 
-Estos horizontes no son fases obligatorias ni establecen
-un orden rígido de desarrollo.
+These horizons are not mandatory phases and do not establish a fixed development order.
 
-## 7. Qué no buscamos construir
+## 7. What we do not aim to build
 
-SpecSpace no pretende:
+SpecSpace does not aim to:
 
-- Reemplazar un IDE de desarrollo de software.
-- Reemplazar Git como sistema de versionado.
-- Imponer un formato documental propietario.
-- Convertirse en una herramienta genérica de gestión
-  de proyectos.
-- Requerir una infraestructura compleja para
-  funcionalidades que pueden resolverse localmente.
-- Automatizar decisiones arquitectónicas sin
-  supervisión humana.
+- Replace a software development IDE.
+- Replace Git as a version control system.
+- Impose a proprietary document format.
+- Become a general-purpose project management tool.
+- Require complex infrastructure for functionality that can work locally.
+- Automate architectural decisions without human oversight.
 
-## 8. Cómo evaluamos el éxito
+## 8. How we measure success
 
-La evolución del producto debería evaluarse según
-su capacidad de:
+The product's evolution should be evaluated by its ability to:
 
-- Reducir la fricción para crear y mantener especificaciones.
-- Mejorar la comprensión de sistemas complejos.
-- Facilitar la navegación entre documentos relacionados.
-- Reducir inconsistencias y ambigüedades.
-- Mantener la portabilidad y control de los documentos.
-- Facilitar el uso de especificaciones durante el SDLC.
+- Reduce friction when creating and maintaining specifications.
+- Improve understanding of complex systems.
+- Make it easier to navigate related documents.
+- Reduce inconsistencies and ambiguities.
+- Preserve document portability and user control.
+- Make specifications more useful throughout the SDLC.
 
-Las métricas y criterios de aceptación concretos
-corresponden a `SPEC.md` y a las especificaciones
-incrementales.
+Concrete metrics and acceptance criteria belong in `SPEC.md` and incremental specifications.
 
-## 9. Gobierno de la visión
+## 9. Vision governance
 
-Este documento representa el norte estratégico
-revisable del producto.
+This document is the product's revisable strategic direction.
 
-No constituye un backlog ni un compromiso de
-implementación.
+It is not a backlog or an implementation commitment.
 
-Cada propuesta incremental debe indicar si:
+Each incremental proposal must state whether it:
 
-- **Aligned:** contribuye directamente a la visión.
-- **Refines:** profundiza o aclara un aspecto existente.
-- **Changes:** propone modificar la dirección estratégica.
+- **Aligns:** directly supports the vision.
+- **Refines:** deepens or clarifies an existing aspect.
+- **Changes:** proposes a change in strategic direction.
 
-Los cambios de visión deben documentar su justificación
-y consecuencias antes de modificar este archivo.
+Proposed vision changes must document their rationale and consequences before this file is changed.
 
-Las decisiones sobre alcance vigente pertenecen a `SPEC.md`.
+Decisions about current scope belong in `SPEC.md`.
 
-Las decisiones de implementación pertenecen a
-`ARCHITECTURE.md` y a los planes incrementales.
+Implementation decisions belong in `ARCHITECTURE.md` and the incremental plans.

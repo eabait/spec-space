@@ -1,0 +1,6 @@
+{
+  "identifier": "main",
+  "description": "Local window lifecycle only; filesystem operations are validated in Rust.",
+  "windows": ["main"],
+  "permissions": ["core:default", "core:window:allow-destroy"]
+}

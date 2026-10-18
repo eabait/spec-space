@@ -1,6 +1,6 @@
 # SpecSpace — current product
 
-Status: implemented baseline, documented on 2026-10-17. This specification describes the existing MVP; it does not imply retrospective acceptance under an SDD process that did not yet exist. It is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
+Status: current product, updated on 2026-10-17 with [increment 001](specs/001-connected-specifications.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
 ## Purpose and document model
 
@@ -27,6 +27,18 @@ The Rust backend owns the selected workspace. It accepts only relative paths, ch
 A save checks a SHA-256 revision against the current file, writes and syncs a same-directory temporary file, checks the revision again, and atomically replaces the destination, preserving Unix permission bits. A conflict leaves both the editor and existing disk file untouched. Copy your edits somewhere safe or explicitly reload the disk version; remote merges remain your responsibility. This is optimistic concurrency: another process writing in the tiny interval between the final check and rename cannot be locked out. Atomic replacement does not preserve hard-link identity or all extended filesystem metadata.
 
 Preview HTML is disabled. Mermaid uses strict mode and sanitized SVG; image and navigation elements are removed from diagrams. Remote images, arbitrary external links, and embedded resources are disabled. No general-purpose filesystem or shell permission is granted to the webview.
+
+## Connected specifications
+
+The **Connections** button opens a workspace graph and a document details panel. Nodes open or select existing tabs; **Go to editor** returns to the selected document. The editor remains mounted, preserving pending content and undo history. Directed edges mean “references”; outgoing references and backlinks are deduplicated by source/destination. The graph fits the available area, supports zoom and scrolling, and offers keyboard-operable nodes plus an All documents list with full paths.
+
+The index reads saved Markdown throughout the workspace, including unexpanded folders. Inline and reference-style links to relative `.md` and `.markdown` files create connections. Code, images, HTML, frontmatter, unused definitions, external URLs, and paths escaping the workspace do not. A cross-document fragment establishes only a document reference; its section is not validated. Fragment-only links are ignored.
+
+Missing document targets appear in Broken references. Rust checks absent targets so inaccessible, excluded, or unindexed files are not falsely labeled missing. Existing files on case-insensitive volumes resolve through their canonical paths. Hidden paths, `node_modules`, `target`, `dist`, and symlinks remain outside the index scope.
+
+Opening a workspace, successfully saving or reloading a file, and explicitly refreshing rebuild connections from disk. Refresh workspace also refreshes the explorer. Refreshing connections never reloads editor buffers. Pending edits are labeled as absent from the graph. A scan failure preserves the previous snapshot with a stale warning and retry; it does not reverse or misreport a successful save. Changing workspaces clears the old snapshot. Reopening reconstructs it without a database.
+
+Scans are bounded to 500 document/issue entries, 32 MiB total content, 10,000 directory entries, and 64 levels of nested directories, in addition to the existing 8 MiB per-file limit. Partial scans and unreadable files are reported. Connections are a best-effort saved-file snapshot; concurrent external writes can make it stale until refresh. No file watcher, section navigation, semantic dependencies, or impact analysis is included.
 
 ## Current limits
 

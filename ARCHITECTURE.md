@@ -1,6 +1,6 @@
 # Current architecture
 
-Baseline: 2026-10-17. Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-17, including Connected Specifications (increment 001). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
@@ -20,9 +20,19 @@ Baseline: 2026-10-17. Local desktop application built with Tauri 2, React 19, Ty
 
 Rust maintains `Mutex<Option<PathBuf>>`: a canonicalized root selected through the native dialog. React tracks open documents with `content`, `saved`, `revision`, and a generation used to recreate the editor after reload. The session is not persisted and no database is used.
 
-IPC commands: `choose_workspace`, `list_directory`, `open_document`, and `write_document`. React has no general filesystem API. Rust resolves relative paths, rejects symlink components, and requires containment within the root.
+IPC commands: `choose_workspace`, `list_directory`, `open_document`, `write_document`, `workspace_snapshot`, and `check_reference_targets`. React has no general filesystem API. Rust resolves relative paths, rejects symlink components, and requires containment within the root.
 
 Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies changes to the original text while preserving the BOM and untouched line endings. Saving checks the revision, writes and syncs a temporary file next to the destination, checks again, then renames it. A concurrency window remains between the final check and rename; external writers are not locked out.
+
+## Connections
+
+`src-tauri/src/connections.rs` builds a bounded read-only workspace snapshot through shared directory enumeration and the existing authorized reader. `workspace_snapshot` runs blocking I/O on a worker thread. `check_reference_targets` validates absent targets without reading their contents, distinguishing missing, excluded, and unavailable destinations and returning canonical paths for existing files. Both commands use the selected Rust-owned workspace; neither adds a general-purpose filesystem API.
+
+`src/connections.ts` parses saved Markdown with unified/remark and the same GFM/frontmatter conventions as the preview. It derives document records and directed reference pairs. `src/useConnections.ts` fetches snapshots, batches target checks, atomically replaces completed indexes, and retains a visibly stale snapshot on failure. Calls run inside App's serialized actions, preventing overlapping workspace changes and refreshes. Save errors propagate before indexing; indexing errors stay separate from successful disk writes.
+
+`src/ConnectionsView.tsx` provides reference/backlink lists, missing-target reporting, and empty/error states. `src/ConnectionGraph.tsx` renders a deterministic SVG graph, fits it with ResizeObserver, and delegates navigation to App. Editors remain mounted inside a hidden wrapper during graph use. The graph and index are derived, in-memory state, with no semantic dependency model or persistent database.
+
+`tests/connections.test.ts` covers Markdown semantics and resolution. `tests/connections-interactions.test.tsx` uses a simulated IPC boundary to cover saved/dirty buffers, navigation, save/scan failures, retries, refresh, and workspace switching. Native checks supplement these tests; they do not replace filesystem tests in Rust.
 
 ## Menus and lifecycle
 

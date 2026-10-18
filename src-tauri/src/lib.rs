@@ -8,6 +8,7 @@ use std::{
 };
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
+mod connections;
 
 const MAX_BYTES: u64 = 8 * 1024 * 1024;
 #[derive(Default)]
@@ -147,6 +148,9 @@ async fn choose_workspace(
 fn list_directory(path: String, state: State<'_, Workspace>) -> Result<Vec<Entry>, String> {
     let guard = state.0.lock().map_err(err)?;
     let root = guard.as_ref().ok_or("Open a workspace first.")?;
+    list_entries(root, &path)
+}
+fn list_entries(root: &Path, path: &str) -> Result<Vec<Entry>, String> {
     let directory = resolve(root, &path)?;
     let mut entries = Vec::new();
     for entry in fs::read_dir(directory).map_err(err)? {
@@ -178,6 +182,41 @@ fn list_directory(path: String, state: State<'_, Workspace>) -> Result<Vec<Entry
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
     Ok(entries)
+}
+#[tauri::command]
+async fn workspace_snapshot(state: State<'_, Workspace>) -> Result<connections::Snapshot, String> {
+    let root = state
+        .0
+        .lock()
+        .map_err(err)?
+        .clone()
+        .ok_or("Open a workspace first.")?;
+    tauri::async_runtime::spawn_blocking(move || connections::scan(&root))
+        .await
+        .map_err(err)?
+}
+#[tauri::command]
+async fn check_reference_targets(
+    paths: Vec<String>,
+    state: State<'_, Workspace>,
+) -> Result<Vec<connections::Target>, String> {
+    if paths.len() > 10_000 {
+        return Err("Too many reference targets.".into());
+    }
+    let root = state
+        .0
+        .lock()
+        .map_err(err)?
+        .clone()
+        .ok_or("Open a workspace first.")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .into_iter()
+            .map(|path| connections::check_target(&root, path))
+            .collect()
+    })
+    .await
+    .map_err(err)
 }
 #[tauri::command]
 fn open_document(path: String, state: State<'_, Workspace>) -> Result<Document, String> {
@@ -255,6 +294,8 @@ pub fn run() {
             choose_workspace,
             list_directory,
             open_document,
+            workspace_snapshot,
+            check_reference_targets,
             write_document
         ])
         .build(tauri::generate_context!())

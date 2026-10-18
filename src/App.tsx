@@ -3,6 +3,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   BookOpen,
+  Network,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -19,6 +20,8 @@ import {
 import { Editor } from './Editor';
 import { Preview } from './Preview';
 import { relativeLink } from './text';
+import { useConnections } from './useConnections';
+import { ConnectionsView } from './ConnectionsView';
 interface Entry {
   name: string;
   path: string;
@@ -38,6 +41,8 @@ const sample =
   '# A clearer space for your specifications\n\nOpen a local folder to start working. Your Markdown stays yours.\n\n## Built for technical thinking\n\n- Edit source without changing its format\n- Keep architecture and requirements side by side\n- Preview diagrams as you write\n\n```mermaid\nflowchart LR\n  A[Local files] --> B[Markdown editor]\n  B --> C[Live preview]\n```\n\n> Local files. Focused editing. No account required.\n';
 export function App() {
   const [workspace, setWorkspace] = useState('');
+  const connections = useConnections();
+  const [showConnections, setShowConnections] = useState(false);
   const [tree, setTree] = useState<Record<string, Entry[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -86,6 +91,7 @@ export function App() {
       ),
     );
     setStatus(`Saved ${tab.path}`);
+    await connections.refresh();
   }
   async function protect(list: Tab[]) {
     const changed = list.filter(dirty);
@@ -108,6 +114,7 @@ export function App() {
       if (!(await protect(tabsRef.current))) return;
       const root = await invoke<string | null>('choose_workspace');
       if (!root) return;
+      connections.reset();
       setWorkspace(root);
       setTabs([]);
       setActive('');
@@ -116,8 +123,10 @@ export function App() {
       setFilter('');
       setTree({ '': await invoke<Entry[]>('list_directory', { path: '' }) });
       setStatus('Workspace opened');
+      await connections.refresh();
     });
-  async function open(path: string) {
+  async function open(path: string, keepConnections = false) {
+    setShowConnections(keepConnections);
     if (tabsRef.current.some((t) => t.path === path)) {
       setActive(path);
       return;
@@ -153,6 +162,7 @@ export function App() {
       ),
     );
     setStatus('Reloaded from disk');
+    await connections.refresh();
   }
   const openFolderHandler = useRef(choose);
   openFolderHandler.current = choose;
@@ -296,6 +306,15 @@ export function App() {
             ? workspace.split('/').at(-1)
             : 'Your ideas, clearly specified'}
         </div>
+        <button
+          className={`connections-toggle ${showConnections ? 'active' : ''}`}
+          disabled={!workspace || busy}
+          aria-pressed={showConnections}
+          onClick={() => setShowConnections((value) => !value)}
+        >
+          <Network size={16} />
+          {showConnections ? 'Back to editor' : 'Connections'}
+        </button>
       </header>
       <div className="workspace">
         {sidebar && (
@@ -303,13 +322,14 @@ export function App() {
             <div className="sidebar-heading">
               <span>WORKSPACE</span>
               <button
-                title="Refresh explorer"
-                aria-label="Refresh explorer"
+                title="Refresh workspace"
+                aria-label="Refresh workspace"
                 disabled={!workspace || busy}
                 onClick={() =>
                   void perform(async () => {
+                    await connections.refresh();
                     const paths = ['', ...expanded];
-                    const results = await Promise.all(
+                    const results = await Promise.allSettled(
                       paths.map(
                         async (path) =>
                           [
@@ -318,7 +338,18 @@ export function App() {
                           ] as const,
                       ),
                     );
-                    setTree(Object.fromEntries(results));
+                    setTree(
+                      Object.fromEntries(
+                        results.flatMap((result) =>
+                          result.status === 'fulfilled' ? [result.value] : [],
+                        ),
+                      ),
+                    );
+                    const failure = results.find(
+                      (result) => result.status === 'rejected',
+                    );
+                    if (failure?.status === 'rejected')
+                      setError(String(failure.reason));
                   })
                 }
               >
@@ -383,7 +414,10 @@ export function App() {
                   <button
                     role="tab"
                     aria-selected={active === tab.path}
-                    onClick={() => setActive(tab.path)}
+                    onClick={() => {
+                      setActive(tab.path);
+                      setShowConnections(false);
+                    }}
                     title={tab.path}
                   >
                     <FileText size={14} />
@@ -412,7 +446,7 @@ export function App() {
               <Plus size={16} />
             </button>
           </div>
-          <div className="document-toolbar">
+          <div className="document-toolbar" hidden={showConnections}>
             <div className="breadcrumb">
               <FileText size={15} />
               {selected ? selected.path : 'A space for clear thinking'}
@@ -454,83 +488,99 @@ export function App() {
               </button>
             </div>
           )}
-          {selected ? (
-            <div className={`document-panes ${mode}`}>
-              <section className="source-pane" aria-label="Markdown source">
-                <div className="pane-label">
-                  MARKDOWN <span>Source of truth</span>
-                </div>
-                {tabs.map((tab) => (
-                  <div
-                    key={`${tab.path}-${tab.generation}`}
-                    className="editor-container"
-                    hidden={tab.path !== active}
-                  >
-                    <Editor
-                      content={tab.content}
-                      onChange={(content) =>
-                        setTabs((current) =>
-                          current.map((t) =>
-                            t.path === tab.path ? { ...t, content } : t,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                ))}
-              </section>
-              <section className="preview-pane" aria-label="Markdown preview">
-                <div className="pane-label">
-                  PREVIEW <span>Live</span>
-                </div>
-                <Preview
-                  content={selected.content}
-                  onLink={(href) => {
-                    const path = relativeLink(active, href);
-                    if (path) void perform(() => open(path));
-                    else
-                      setStatus(
-                        'Only workspace Markdown links are opened in this MVP.',
-                      );
-                  }}
-                />
-              </section>
-            </div>
-          ) : (
-            <div className="welcome">
-              <div className="welcome-copy">
-                <div className="eyebrow">THE LOCAL SPECIFICATION WORKSPACE</div>
-                <h1>
-                  Make room for
-                  <br />
-                  clear thinking.
-                </h1>
-                <p>
-                  Requirements, architecture, and the ideas in between.
-                  <br />
-                  One focused space for your Markdown.
-                </p>
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() => void choose()}
-                >
-                  <FolderOpen size={17} />
-                  Open a local folder <span>↗</span>
-                </button>
-                <div className="welcome-details">
-                  No account. No cloud. Just your files.
-                </div>
-              </div>
-              <div className="sample-card">
-                <div className="sample-heading">
-                  <FileText size={14} />
-                  getting-started.md<span>PREVIEW</span>
-                </div>
-                <Preview content={sample} onLink={() => {}} />
-              </div>
-            </div>
+          {showConnections && (
+            <ConnectionsView
+              index={connections.index}
+              selected={active}
+              dirty={!!selected && dirty(selected)}
+              loading={connections.loading}
+              error={connections.error}
+              onRefresh={() => void perform(connections.refresh)}
+              onOpen={(path) => void perform(() => open(path, true))}
+              onEdit={() => setShowConnections(false)}
+            />
           )}
+          <div className="editor-workspace" hidden={showConnections}>
+            {selected ? (
+              <div className={`document-panes ${mode}`}>
+                <section className="source-pane" aria-label="Markdown source">
+                  <div className="pane-label">
+                    MARKDOWN <span>Source of truth</span>
+                  </div>
+                  {tabs.map((tab) => (
+                    <div
+                      key={`${tab.path}-${tab.generation}`}
+                      className="editor-container"
+                      hidden={tab.path !== active}
+                    >
+                      <Editor
+                        content={tab.content}
+                        onChange={(content) =>
+                          setTabs((current) =>
+                            current.map((t) =>
+                              t.path === tab.path ? { ...t, content } : t,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  ))}
+                </section>
+                <section className="preview-pane" aria-label="Markdown preview">
+                  <div className="pane-label">
+                    PREVIEW <span>Live</span>
+                  </div>
+                  <Preview
+                    content={selected.content}
+                    onLink={(href) => {
+                      const path = relativeLink(active, href);
+                      if (path) void perform(() => open(path));
+                      else
+                        setStatus(
+                          'Only workspace Markdown links are opened in this MVP.',
+                        );
+                    }}
+                  />
+                </section>
+              </div>
+            ) : (
+              <div className="welcome">
+                <div className="welcome-copy">
+                  <div className="eyebrow">
+                    THE LOCAL SPECIFICATION WORKSPACE
+                  </div>
+                  <h1>
+                    Make room for
+                    <br />
+                    clear thinking.
+                  </h1>
+                  <p>
+                    Requirements, architecture, and the ideas in between.
+                    <br />
+                    One focused space for your Markdown.
+                  </p>
+                  <button
+                    className="primary"
+                    disabled={busy}
+                    onClick={() => void choose()}
+                  >
+                    <FolderOpen size={17} />
+                    Open a local folder <span>↗</span>
+                  </button>
+                  <div className="welcome-details">
+                    No account. No cloud. Just your files.
+                  </div>
+                </div>
+                <div className="sample-card">
+                  <div className="sample-heading">
+                    <FileText size={14} />
+                    getting-started.md<span>PREVIEW</span>
+                  </div>
+                  <Preview content={sample} onLink={() => {}} />
+                </div>
+              </div>
+            )}
+          </div>
         </main>
       </div>
       <footer className="statusbar">

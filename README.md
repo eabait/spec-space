@@ -15,6 +15,8 @@ Choose **File → Open Folder…** (⌘O), then select a folder containing `.md`
 
 Use **Connections** to explore saved Markdown references as a directed graph. Select a node to open its document and inspect its outgoing references and backlinks; **Go to editor** returns to editing. Broken references lists missing Markdown destinations. The graph fits the window; use zoom controls or scrolling for detail, and All documents for full paths.
 
+With a workspace open, use File → New Markdown Document… (⌘N) or the plus action in the explorer to create an empty Markdown file. The native dialog stays within the workspace boundary, and existing files are never overwritten.
+
 Connections update after saves, reloads, and workspace opening. Use **Refresh connections** after external file changes; **Refresh workspace** also updates the explorer. Neither refresh overwrites pending editor changes. Scan limits, skipped files, and stale results are shown in the view. See [SPEC](SPEC.md) for exact limits and exclusions.
 
 ```sh

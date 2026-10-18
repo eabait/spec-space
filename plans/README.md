@@ -1,6 +1,7 @@
 # Implementation plans
 
 - [001 — Connected Specifications](001-connected-specifications.md): implementation and validation evidence.
+- [003 — Create Markdown documents](003-create-markdown-documents.md): complete local implementation and validation evidence.
 
 Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 

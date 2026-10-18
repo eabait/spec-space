@@ -25,7 +25,7 @@ Read [AGENTS.md](AGENTS.md), [VISION.md](VISION.md), [SPEC.md](SPEC.md), [ARCHIT
 
 Connections describe explicit document references, not semantic dependency or change impact. Scanning is bounded and reports partial results; see SPEC. No file creation, autosave, session recovery, file watcher, Git UI, or collaboration.
 
-**Active focus: Horizon 1 — Authoring Workspace**, selected by the user on 2026-10-18. Assess the basic create/edit/preview/save workflow first, then editing/navigation friction and session continuity. No next application increment is accepted; define one bounded authoring SPEC before implementation. The next unused ID is 003.
+**Active focus: Horizon 1 — Authoring Workspace**, selected by the user on 2026-10-18. Assess the basic create/edit/preview/save workflow first, then editing/navigation friction and session continuity. [SPEC 003](specs/003-create-markdown-documents.md) is implemented locally with [plan 003](plans/003-create-markdown-documents.md): create an empty Markdown file through the native File menu or explorer action, validate it in Rust, and open it in a clean tab. Packaged dialog and minimum-window inspection remain outstanding. The next unused ID is 004.
 
 User-requested authoring priorities also include closing all tabs, closing all except the active tab, and improving copy/paste. These refine Horizon 1 to reduce everyday editing friction. Bulk closing must preserve pending-change protection; concrete clipboard problems and expected source/preview behavior must be established before specifying changes. This records direction, not an implemented or accepted feature contract.
 
@@ -35,4 +35,4 @@ The user also requested exporting individual Mermaid diagrams as PNG files and c
 
 ## Latest task
 
-On 2026-10-18 the user requested preserving the assisted-inventory direction in VISION and focusing work on Horizon 1, then added bulk tab closing, copy/paste improvements, and Mermaid PNG export/image clipboard copying. Recorded the rationale above and added these priorities to VISION. Proposal 002 and its pilot remain deferred; prior read-only inspection of Test remains research only. Current SPEC and ARCHITECTURE continue to describe increment 001. Changes in this task are documentation only; prior local code work is preserved.
+On 2026-10-18 the user accepted and authorized implementation of SPEC 003. Implemented the native creation command, File menu event, explorer action, conflict handling, and Rust tests. Fixed a UI freeze caused by the initial blocking save dialog by switching to the non-blocking callback API. `npm run build`, `npm run tauri build`, 7 Rust tests, formatting, and diff checks passed. Packaged dialog and minimum-window inspection remain outstanding. Proposal 002 and its pilot remain deferred; tab closing, clipboard, and Mermaid export remain future Horizon 1 work.

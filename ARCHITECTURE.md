@@ -11,7 +11,7 @@ Updated: 2026-10-17, including Connected Specifications (increment 001). Local d
 | `src/text.ts`                                   | Applying changes to original text and resolving relative links                        |
 | `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Mermaid rendering, and sanitized SVG |
 | `src/styles.css`                                | Presentation and responsive layout                                                    |
-| `src-tauri/src/lib.rs`                          | Authorized workspace, native picker, reading, saving, menus, and closing              |
+| `src-tauri/src/lib.rs`                          | Authorized workspace, native pickers, reading, creating, saving, menus, and closing   |
 | `src-tauri/tauri.conf.json`                     | Window, CSP, and bundling                                                             |
 | `src-tauri/capabilities/default.json`           | Minimal window capabilities                                                           |
 | `tests/text.test.ts` and Rust tests in `lib.rs` | Text preservation, links, and filesystem boundaries                                   |
@@ -20,7 +20,7 @@ Updated: 2026-10-17, including Connected Specifications (increment 001). Local d
 
 Rust maintains `Mutex<Option<PathBuf>>`: a canonicalized root selected through the native dialog. React tracks open documents with `content`, `saved`, `revision`, and a generation used to recreate the editor after reload. The session is not persisted and no database is used.
 
-IPC commands: `choose_workspace`, `list_directory`, `open_document`, `write_document`, `workspace_snapshot`, and `check_reference_targets`. React has no general filesystem API. Rust resolves relative paths, rejects symlink components, and requires containment within the root.
+IPC commands: `choose_workspace`, `create_markdown_document`, `list_directory`, `open_document`, `write_document`, `workspace_snapshot`, and `check_reference_targets`. React has no general filesystem API. Rust resolves relative paths, rejects symlink components, requires containment within the root, and uses exclusive creation for new documents.
 
 Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies changes to the original text while preserving the BOM and untouched line endings. Saving checks the revision, writes and syncs a temporary file next to the destination, checks again, then renames it. A concurrency window remains between the final check and rename; external writers are not locked out.
 

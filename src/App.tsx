@@ -138,6 +138,53 @@ export function App() {
     ]);
     setActive(path);
   }
+  async function createDocument() {
+    if (!isTauri()) {
+      setError(
+        'Run the desktop app to create documents inside a local workspace.',
+      );
+      return;
+    }
+    if (!workspace) {
+      setError('Open a workspace first.');
+      return;
+    }
+    await invoke('create_markdown_document');
+  }
+  async function handleCreated(result: {
+    kind: 'Created' | 'ExistingMarkdown';
+    path: string;
+  }) {
+    if (result.kind === 'ExistingMarkdown') {
+      if (window.confirm(`${result.path} already exists. Open it?`))
+        await open(result.path);
+      return;
+    }
+    const parent = result.path.includes('/')
+      ? result.path.slice(0, result.path.lastIndexOf('/'))
+      : '';
+    const refreshPaths = ['', ...expanded].filter(
+      (path) => path === '' || path === parent,
+    );
+    const refreshed = await Promise.allSettled(
+      refreshPaths.map(
+        async (path) =>
+          [path, await invoke<Entry[]>('list_directory', { path })] as const,
+      ),
+    );
+    setTree((current) => ({
+      ...current,
+      ...Object.fromEntries(
+        refreshed.flatMap((item) =>
+          item.status === 'fulfilled' ? [item.value] : [],
+        ),
+      ),
+    }));
+    if (parent) setExpanded((current) => new Set([...current, parent]));
+    await open(result.path);
+    await connections.refresh();
+    setStatus(`Created ${result.path}`);
+  }
   async function close(path: string) {
     const tab = tabsRef.current.find((t) => t.path === path);
     if (!tab || !(await protect([tab]))) return;
@@ -166,6 +213,8 @@ export function App() {
   }
   const openFolderHandler = useRef(choose);
   openFolderHandler.current = choose;
+  const newDocumentHandler = useRef(createDocument);
+  newDocumentHandler.current = createDocument;
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
@@ -184,6 +233,50 @@ export function App() {
       cleanup?.();
     };
   }, []);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    getCurrentWindow()
+      .listen('new-document-requested', () => {
+        void perform(() => newDocumentHandler.current());
+      })
+      .then((unlisten) => {
+        if (disposed) unlisten();
+        else cleanup = unlisten;
+      })
+      .catch((e) => setError(String(e)));
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [perform]);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    getCurrentWindow()
+      .listen<{
+        result: { kind: 'Created' | 'ExistingMarkdown'; path: string } | null;
+        error: string | null;
+      }>('new-document-result', (event) => {
+        if (event.payload.error) {
+          setError(event.payload.error);
+          return;
+        }
+        if (event.payload.result)
+          void perform(() => handleCreated(event.payload.result!));
+      })
+      .then((unlisten) => {
+        if (disposed) unlisten();
+        else cleanup = unlisten;
+      })
+      .catch((e) => setError(String(e)));
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [perform]);
   const closeHandler = useRef<() => void>(() => {});
   closeHandler.current = () =>
     void perform(async () => {
@@ -307,6 +400,16 @@ export function App() {
             : 'Your ideas, clearly specified'}
         </div>
         <button
+          className="workspace-action"
+          aria-label="Open workspace"
+          title="Open workspace"
+          disabled={busy}
+          onClick={() => void choose()}
+        >
+          <FolderOpen size={16} />
+          Open workspace
+        </button>
+        <button
           className={`connections-toggle ${showConnections ? 'active' : ''}`}
           disabled={!workspace || busy}
           aria-pressed={showConnections}
@@ -321,6 +424,16 @@ export function App() {
           <aside>
             <div className="sidebar-heading">
               <span>WORKSPACE</span>
+              <button
+                className="new-document-button"
+                title="New Markdown document"
+                aria-label="New Markdown document"
+                disabled={!workspace || busy}
+                onClick={() => void perform(createDocument)}
+              >
+                <Plus size={14} />
+                <span>New</span>
+              </button>
               <button
                 title="Refresh workspace"
                 aria-label="Refresh workspace"
@@ -437,14 +550,6 @@ export function App() {
                 <span className="welcome-tab">Welcome to SpecSpace</span>
               )}
             </div>
-            <button
-              aria-label="Open workspace"
-              title="Open workspace"
-              disabled={busy}
-              onClick={() => void choose()}
-            >
-              <Plus size={16} />
-            </button>
           </div>
           <div className="document-toolbar" hidden={showConnections}>
             <div className="breadcrumb">

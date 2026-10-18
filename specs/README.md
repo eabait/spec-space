@@ -2,6 +2,7 @@
 
 - [001 — Connected Specifications](001-connected-specifications.md): accepted on 2026-10-17; see the increment for implementation status and evidence.
 - [002 — Assisted artifact inventory](002-assisted-artifact-inventory.md): deferred proposal as of 2026-10-18; direction retained while Horizon 1 authoring is the active focus. Pilot deferred too.
+- [003 — Create Markdown documents](003-create-markdown-documents.md): implemented locally on 2026-10-18; native creation within the open workspace.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md).
 

@@ -25,6 +25,17 @@ struct Document {
     content: String,
     revision: String,
 }
+#[derive(Clone, Serialize)]
+#[serde(tag = "kind", content = "path")]
+enum CreateResult {
+    Created(String),
+    ExistingMarkdown(String),
+}
+#[derive(Clone, Serialize)]
+struct CreateEvent {
+    result: Option<CreateResult>,
+    error: Option<String>,
+}
 fn err(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
@@ -118,6 +129,94 @@ fn save_document(
     }
     temp.persist(&path).map_err(err)?;
     Ok(revision(content.as_bytes()))
+}
+fn create_document(root: &Path, selected: &Path) -> Result<CreateResult, String> {
+    let parent = selected.parent().ok_or("Missing document directory.")?;
+    let parent = parent.canonicalize().map_err(err)?;
+    if !parent.starts_with(root) || !parent.is_dir() {
+        return Err("Choose a directory inside the workspace.".into());
+    }
+    let name = selected
+        .file_name()
+        .and_then(|v| v.to_str())
+        .ok_or("Invalid document name.")?;
+    if name.is_empty() || name == "." || name == ".." || name.contains('/') || name.contains('\\') {
+        return Err("Choose a valid Markdown filename.".into());
+    }
+    let extension = selected.extension().and_then(|v| v.to_str()).unwrap_or("");
+    let destination = if extension.is_empty() {
+        selected.with_extension("md")
+    } else if matches!(extension.to_ascii_lowercase().as_str(), "md" | "markdown") {
+        selected.to_path_buf()
+    } else {
+        return Err("Only .md and .markdown files can be created.".into());
+    };
+    if fs::symlink_metadata(&destination)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        return Err("Symbolic links are not supported for workspace files.".into());
+    }
+    let relative = destination
+        .strip_prefix(root)
+        .map_err(err)?
+        .to_string_lossy()
+        .into_owned();
+    if destination.exists() {
+        if markdown(&destination) {
+            return Ok(CreateResult::ExistingMarkdown(relative));
+        }
+        return Err("A file already exists at that location.".into());
+    }
+    fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&destination)
+        .map_err(err)?;
+    Ok(CreateResult::Created(relative))
+}
+#[tauri::command]
+fn create_markdown_document(
+    app: tauri::AppHandle,
+    state: State<'_, Workspace>,
+) -> Result<(), String> {
+    let root = state
+        .0
+        .lock()
+        .map_err(err)?
+        .clone()
+        .ok_or("Open a workspace first.")?;
+    let selected_root = root.clone();
+    app.dialog()
+        .file()
+        .set_title("New Markdown document")
+        .set_directory(root.to_string_lossy().as_ref())
+        .save_file(move |selected| {
+            let event = match selected {
+                None => CreateEvent {
+                    result: None,
+                    error: None,
+                },
+                Some(selected) => match selected.into_path() {
+                    Ok(path) => match create_document(&selected_root, &path) {
+                        Ok(result) => CreateEvent {
+                            result: Some(result),
+                            error: None,
+                        },
+                        Err(error) => CreateEvent {
+                            result: None,
+                            error: Some(error),
+                        },
+                    },
+                    Err(error) => CreateEvent {
+                        result: None,
+                        error: Some(err(error)),
+                    },
+                },
+            };
+            let _ = app.emit("new-document-result", event);
+        });
+    Ok(())
 }
 #[tauri::command]
 async fn choose_workspace(
@@ -259,7 +358,11 @@ pub fn run() {
             let open_folder = MenuItemBuilder::with_id("open-folder", "Open Folder…")
                 .accelerator("CmdOrCtrl+O")
                 .build(app)?;
+            let new_document = MenuItemBuilder::with_id("new-document", "New Markdown Document…")
+                .accelerator("CmdOrCtrl+N")
+                .build(app)?;
             let file = SubmenuBuilder::new(app, "File")
+                .item(&new_document)
                 .item(&open_folder)
                 .build()?;
             let edit = SubmenuBuilder::new(app, "Edit")
@@ -282,6 +385,11 @@ pub fn run() {
                         let _ = window.emit("open-folder-requested", ());
                     }
                 }
+                if event.id() == "new-document" {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.emit("new-document-requested", ());
+                    }
+                }
                 if event.id() == "safe-quit" {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.close();
@@ -292,6 +400,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             choose_workspace,
+            create_markdown_document,
             list_directory,
             open_document,
             workspace_snapshot,
@@ -348,5 +457,23 @@ mod tests {
         let root = dir.path().canonicalize().unwrap();
         std::os::unix::fs::symlink("/tmp", root.join("escape")).unwrap();
         assert!(resolve(&root, "escape").is_err());
+    }
+    #[test]
+    fn creates_markdown_without_overwriting() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        assert!(
+            matches!(create_document(&root, &root.join("new-spec")), Ok(CreateResult::Created(path)) if path == "new-spec.md")
+        );
+        assert_eq!(fs::read(root.join("new-spec.md")).unwrap(), b"");
+        fs::write(root.join("existing.md"), "keep").unwrap();
+        assert!(
+            matches!(create_document(&root, &root.join("existing.md")), Ok(CreateResult::ExistingMarkdown(path)) if path == "existing.md")
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("existing.md")).unwrap(),
+            "keep"
+        );
+        assert!(create_document(&root, &root.join("bad.txt")).is_err());
     }
 }

@@ -16,6 +16,7 @@ The primary open action is **File → Open Folder…** (⌘O), in the native men
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced Mermaid rendering with inline errors.
 - Relative Markdown links navigate within the workspace.
 - Explicit save, reload from disk, and save/discard/cancel protection on tab close, workspace switch, window close, and normal application quit.
+- Create a new empty Markdown document from File → New Markdown Document… (⌘N) or the explorer plus action. A native save dialog chooses an existing workspace directory; omitted extensions become `.md`, and only `.md`/`.markdown` are accepted. Creation never overwrites an existing file. Existing Markdown conflicts can be opened and reuse an existing tab.
 - `⌘O` opens a workspace, `⌘S` saves, `⌘W` closes the current tab, and `⌘Q` quits; CodeMirror's `⌘F` searches the active document.
 
 ## Content and filesystem guarantees

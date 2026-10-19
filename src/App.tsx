@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
@@ -8,6 +8,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  ListTree,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -16,8 +17,10 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { Editor } from './Editor';
-import { Preview } from './Preview';
+import type { RefObject } from 'react';
+import { Editor, type EditorHandle } from './Editor';
+import { Preview, type PreviewHandle } from './Preview';
+import { extractOutline, type OutlineSection } from './outline';
 import { relativeLink } from './text';
 import { useConnections } from './useConnections';
 import { ConnectionsView } from './ConnectionsView';
@@ -78,10 +81,51 @@ function BlueprintMark({ size = 20 }: { size?: number }) {
     </svg>
   );
 }
+
+function OutlineList({
+  sections,
+  onNavigate,
+  firstItemRef,
+  depth = 0,
+}: {
+  sections: OutlineSection[];
+  onNavigate: (section: OutlineSection) => void;
+  firstItemRef: RefObject<HTMLButtonElement | null>;
+  depth?: number;
+}) {
+  return (
+    <ul className="outline-list">
+      {sections.map((section, index) => (
+        <li key={section.offset}>
+          <button
+            ref={depth === 0 && index === 0 ? firstItemRef : undefined}
+            aria-label={`Heading level ${section.level}: ${section.title || 'Untitled heading'}`}
+            onClick={() => onNavigate(section)}
+          >
+            <span aria-hidden="true" className="outline-level">
+              H{section.level}
+            </span>
+            <span>{section.title || 'Untitled heading'}</span>
+          </button>
+          {section.children.length > 0 && (
+            <OutlineList
+              sections={section.children}
+              onNavigate={onNavigate}
+              firstItemRef={firstItemRef}
+              depth={depth + 1}
+            />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function App() {
   const [workspace, setWorkspace] = useState('');
   const connections = useConnections();
   const [showConnections, setShowConnections] = useState(false);
+  const [showOutline, setShowOutline] = useState(false);
   const [tree, setTree] = useState<Record<string, Entry[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -111,8 +155,31 @@ export function App() {
     save: boolean;
     paths?: string[];
   } | null>(null);
+  const outlineButtonRef = useRef<HTMLButtonElement>(null);
+  const outlineCloseRef = useRef<HTMLButtonElement>(null);
+  const outlineFirstItemRef = useRef<HTMLButtonElement>(null);
+  const editorRefs = useRef(new Map<string, EditorHandle>());
+  const editorRefCallbacks = useRef(
+    new Map<string, (handle: EditorHandle | null) => void>(),
+  );
+  const previewRef = useRef<PreviewHandle>(null);
   const selected = tabs.find((t) => t.path === active);
+  const outline = useMemo(
+    () => (selected ? extractOutline(selected.content) : []),
+    [selected?.content],
+  );
   const visibleMode = compactLayout && mode === 'split' ? 'preview' : mode;
+  function editorRefFor(path: string) {
+    let callback = editorRefCallbacks.current.get(path);
+    if (!callback) {
+      callback = (handle) => {
+        if (handle) editorRefs.current.set(path, handle);
+        else editorRefs.current.delete(path);
+      };
+      editorRefCallbacks.current.set(path, callback);
+    }
+    return callback;
+  }
   const dirty = (tab: Tab) => tab.content !== tab.saved;
   const ask = (message: string, save = true) =>
     new Promise<Choice>((resolve) => setPrompt({ message, resolve, save }));
@@ -130,6 +197,33 @@ export function App() {
       setBusy(false);
     }
   }, []);
+  function closeOutline() {
+    setShowOutline(false);
+    requestAnimationFrame(() => outlineButtonRef.current?.focus());
+  }
+  function navigateToSection(section: OutlineSection) {
+    if (visibleMode === 'source' || visibleMode === 'split')
+      editorRefs.current.get(active)?.navigateToLine(section.line);
+    if (visibleMode === 'preview' || visibleMode === 'split')
+      previewRef.current?.scrollToOffset(section.offset);
+  }
+  useEffect(() => {
+    if (!showOutline) return;
+    const focusFrame = requestAnimationFrame(() => {
+      (outlineFirstItemRef.current ?? outlineCloseRef.current)?.focus();
+    });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeOutline();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showOutline]);
   useEffect(() => {
     const updateLayout = () => setCompactLayout(window.innerWidth <= 1100);
     updateLayout();
@@ -651,7 +745,10 @@ export function App() {
           className={`connections-toggle ${showConnections ? 'active' : ''}`}
           disabled={!workspace || busy}
           aria-pressed={showConnections}
-          onClick={() => setShowConnections((value) => !value)}
+          onClick={() => {
+            setShowOutline(false);
+            setShowConnections((value) => !value);
+          }}
         >
           <Network size={16} />
           {showConnections ? 'Back to editor' : 'Connections'}
@@ -818,6 +915,18 @@ export function App() {
               <FileText size={15} />
               {selected ? selected.path : 'A space for clear thinking'}
             </div>
+            <button
+              ref={outlineButtonRef}
+              className={`outline-toggle ${showOutline ? 'active' : ''}`}
+              aria-label="Outline"
+              aria-expanded={showOutline}
+              aria-controls="document-outline"
+              disabled={!selected || busy}
+              onClick={() => setShowOutline((value) => !value)}
+            >
+              <ListTree size={15} />
+              Outline
+            </button>
             <div className="view-modes" aria-label="Editor mode">
               {(['source', 'split', 'preview'] as const)
                 .filter((item) => !compactLayout || item !== 'split')
@@ -883,6 +992,7 @@ export function App() {
                       hidden={tab.path !== active}
                     >
                       <Editor
+                        ref={editorRefFor(tab.path)}
                         content={tab.content}
                         canEdit={() => !lock.current}
                         onChange={(content) =>
@@ -901,6 +1011,7 @@ export function App() {
                     PREVIEW <span>Live</span>
                   </div>
                   <Preview
+                    ref={previewRef}
                     content={selected.content}
                     filename={selected.path.split('/').at(-1)}
                     onLink={(href) => {
@@ -950,6 +1061,36 @@ export function App() {
                   <Preview content={sample} onLink={() => {}} />
                 </div>
               </div>
+            )}
+            {selected && showOutline && (
+              <section
+                id="document-outline"
+                className="outline-panel"
+                role="dialog"
+                aria-labelledby="outline-title"
+              >
+                <header>
+                  <h2 id="outline-title">On this page</h2>
+                  <button
+                    ref={outlineCloseRef}
+                    aria-label="Close outline"
+                    onClick={closeOutline}
+                  >
+                    <X size={15} />
+                  </button>
+                </header>
+                {outline.length ? (
+                  <nav aria-label="Document sections">
+                    <OutlineList
+                      sections={outline}
+                      onNavigate={navigateToSection}
+                      firstItemRef={outlineFirstItemRef}
+                    />
+                  </nav>
+                ) : (
+                  <p className="outline-empty">No headings in this document.</p>
+                )}
+              </section>
             )}
           </div>
         </main>

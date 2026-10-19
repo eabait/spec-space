@@ -16,6 +16,7 @@
 
 - [009 — Restore the last workspace and open tabs](009-session-continuity.md): implemented locally; validation evidence and closure in plan 009.
 - [010 — Visual experience for reading and navigating specifications](010-visual-experience-revamp.md): implemented locally and validated by the user on 2026-10-19; see plan 010.
+- [011 — Navigate long documents with a section outline](011-document-section-outline.md): implemented and validated locally on 2026-10-19; see plan 011.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 

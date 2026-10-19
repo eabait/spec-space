@@ -692,6 +692,7 @@ main {
 
 /* Connections occupy the main workspace, leaving editor instances mounted. */
 .editor-workspace {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -1378,6 +1379,109 @@ aside {
 .connections-details h2,
 .connections-details h3 {
   color: #29434d;
+}
+.outline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  color: #35525c;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.outline-toggle.active {
+  background: var(--teal-soft);
+  color: #1f6665;
+}
+.outline-panel {
+  position: absolute;
+  z-index: 30;
+  top: 12px;
+  right: 16px;
+  width: min(330px, calc(100% - 32px));
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--paper);
+  box-shadow: 0 14px 38px #203b3728;
+}
+.outline-panel > header {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px 0 16px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.outline-panel h2 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+.outline-panel > header button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--muted);
+}
+.outline-panel nav {
+  overflow: auto;
+  padding: 8px 7px 12px;
+}
+.outline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.outline-list .outline-list {
+  padding-left: 0;
+}
+.outline-list li {
+  margin: 1px 0;
+}
+.outline-list button {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  text-align: left;
+  color: var(--ink);
+  font-size: 11px;
+}
+.outline-list button:hover,
+.outline-list button:focus-visible {
+  background: var(--teal-soft);
+  color: #1f6665;
+}
+.outline-level {
+  width: 21px;
+  flex: 0 0 21px;
+  color: var(--muted-soft);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+}
+.outline-list button > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outline-empty {
+  margin: 0;
+  padding: 18px 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.markdown :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 18px;
 }
 .edit-document,
 .reference-list button {

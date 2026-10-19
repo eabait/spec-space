@@ -1,24 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { basicSetup } from 'codemirror';
 import { applyEditorChanges, editorText, type Change } from './text';
-export function Editor({
-  content,
-  onChange,
-  canEdit,
-}: {
-  content: string;
-  canEdit?: () => boolean;
-  onChange: (content: string) => void;
-}) {
+export interface EditorHandle {
+  navigateToLine(line: number): void;
+}
+
+export const Editor = forwardRef<
+  EditorHandle,
+  {
+    content: string;
+    canEdit?: () => boolean;
+    onChange: (content: string) => void;
+  }
+>(function Editor({ content, onChange, canEdit }, ref) {
   const host = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
   const callback = useRef(onChange);
   callback.current = onChange;
   const editing = useRef(canEdit);
   editing.current = canEdit;
   const raw = useRef(content);
+  useImperativeHandle(
+    ref,
+    () => ({
+      navigateToLine(line) {
+        const view = viewRef.current;
+        if (!view) return;
+        const number = Math.max(1, Math.min(line, view.state.doc.lines));
+        const position = view.state.doc.line(number).from;
+        view.dispatch({
+          effects: EditorView.scrollIntoView(position, { y: 'start' }),
+        });
+        view.focus();
+      },
+    }),
+    [],
+  );
   useEffect(() => {
     const view = new EditorView({
       parent: host.current!,
@@ -75,7 +95,11 @@ export function Editor({
         ],
       }),
     });
-    return () => view.destroy();
+    viewRef.current = view;
+    return () => {
+      viewRef.current = null;
+      view.destroy();
+    };
   }, []);
   return <div className="editor-host" ref={host} />;
-}
+});

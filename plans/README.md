@@ -10,6 +10,7 @@
 
 - [009 — Restore the last workspace and open tabs](009-session-continuity.md): complete; accepted and implemented 2026-10-19.
 - [010 — Visual experience for reading and navigating specifications](010-visual-experience-revamp.md): complete and user-validated; implementation plan acceptance and validation are recorded on 2026-10-19.
+- [011 — Navigate long documents with a section outline](011-document-section-outline.md): complete; automated and isolated packaged-app validation recorded in plan 011.
 
 - [001 — Connected Specifications](001-connected-specifications.md): implementation and validation evidence.
 - [003 — Create Markdown documents](003-create-markdown-documents.md): complete local implementation and validation evidence.

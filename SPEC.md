@@ -1,6 +1,6 @@
 # SpecSpace — current product
 
-Status: current product, updated on 2026-10-19 with [increment 010](specs/010-visual-experience-revamp.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
+Status: current product, updated on 2026-10-19 with [increment 011](specs/011-document-section-outline.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
 ## Purpose and document model
 
@@ -15,6 +15,7 @@ The primary open action is **File → Open Folder…** (⌘O), in the native men
 - Multiple document tabs, dirty indicators, independent editor undo histories, and source / split / preview layouts.
 - A warm editorial and blueprint-inspired visual system across workspace chrome, source editing, Markdown reading, diagrams, and Connections. Wide windows use a broad reading canvas beside Source; at compact widths the existing controls focus on Source or Preview while keeping the editor mounted and preserving its state. The macOS icon uses connected architectural modules rather than a book motif.
 - After a normal quit, restore the last workspace and open Markdown tabs from current disk content, preserving tab order and the active document. Session metadata stores paths and navigation state locally; unsaved text, editor history, and view state are not restored. Unavailable documents are skipped with a status notice.
+- **Outline** opens a transient nested heading list for the active document. It follows the active tab and current unsaved source, distinguishes repeated titles, and navigates to the selected heading in Source, Preview, or both Split panes. The panel is keyboard-operable, scrolls internally, and does not change document text or ordinary pane scroll coupling.
 - CodeMirror Markdown editing with line numbers, syntax highlighting, search, undo/redo, and line wrapping.
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced local Mermaid-syntax rendering through Pele, with inline errors.
 - Relative Markdown links navigate within the workspace.
@@ -42,7 +43,7 @@ Missing document targets appear in Broken references. Rust checks absent targets
 
 Opening a workspace, successfully saving or reloading a file, and explicitly refreshing rebuild connections from disk. Refresh workspace also refreshes the explorer. Refreshing connections never reloads editor buffers. Pending edits are labeled as absent from the graph. A scan failure preserves the previous snapshot with a stale warning and retry; it does not reverse or misreport a successful save. Changing workspaces clears the old snapshot. Reopening reconstructs it without a database.
 
-Scans are bounded to 500 document/issue entries, 32 MiB total content, 10,000 directory entries, and 64 levels of nested directories, in addition to the existing 8 MiB per-file limit. Partial scans and unreadable files are reported. Connections are a best-effort saved-file snapshot; concurrent external writes can make it stale until refresh. No file watcher, section navigation, semantic dependencies, or impact analysis is included.
+Scans are bounded to 500 document/issue entries, 32 MiB total content, 10,000 directory entries, and 64 levels of nested directories, in addition to the existing 8 MiB per-file limit. Partial scans and unreadable files are reported. Connections are a best-effort saved-file snapshot; concurrent external writes can make it stale until refresh. No file watcher, semantic dependencies, or impact analysis is included.
 
 ## Current limits
 

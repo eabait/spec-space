@@ -21,6 +21,8 @@ const backend = vi.hoisted(() => ({
   } | null,
   savedSessions: [] as unknown[],
   calls: [] as string[],
+  sourceNavigation: [] as number[],
+  previewNavigation: [] as number[],
 }));
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => true,
@@ -80,22 +82,44 @@ vi.mock('@tauri-apps/api/window', () => ({
     onCloseRequested: async () => () => {},
   }),
 }));
-vi.mock('../src/Editor', () => ({
-  Editor: ({
-    content,
-    onChange,
-  }: {
-    content: string;
-    onChange: (text: string) => void;
-  }) => (
-    <textarea
-      aria-label="Test editor"
-      value={content}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  ),
-}));
-vi.mock('../src/Preview', () => ({ Preview: () => <div>Preview</div> }));
+vi.mock('../src/Editor', async () => {
+  const React = await import('react');
+  return {
+    Editor: React.forwardRef<
+      { navigateToLine: (line: number) => void },
+      {
+        content: string;
+        onChange: (text: string) => void;
+        canEdit?: () => boolean;
+      }
+    >(({ content, onChange }, ref) => {
+      React.useImperativeHandle(ref, () => ({
+        navigateToLine: (line) => backend.sourceNavigation.push(line),
+      }));
+      return (
+        <textarea
+          aria-label="Test editor"
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }),
+  };
+});
+vi.mock('../src/Preview', async () => {
+  const React = await import('react');
+  return {
+    Preview: React.forwardRef<
+      { scrollToOffset: (offset: number) => void },
+      { content: string; onLink: (href: string) => void; filename?: string }
+    >((_props, ref) => {
+      React.useImperativeHandle(ref, () => ({
+        scrollToOffset: (offset) => backend.previewNavigation.push(offset),
+      }));
+      return <div>Preview</div>;
+    }),
+  };
+});
 afterEach(cleanup);
 beforeEach(() => {
   vi.stubGlobal(
@@ -109,6 +133,8 @@ beforeEach(() => {
   backend.failScan = false;
   backend.failSave = false;
   backend.calls = [];
+  backend.sourceNavigation = [];
+  backend.previewNavigation = [];
   backend.nextRoot = '/workspace';
   backend.session = null;
   backend.savedSessions = [];
@@ -137,6 +163,85 @@ async function start() {
   );
   await screen.findByRole('textbox', { name: 'Test editor' });
 }
+it('navigates headings in split, source and preview without changing the editor buffer', async () => {
+  window.innerWidth = 1400;
+  const source = '# Title\n\n## Details\n\n# Title\n';
+  backend.files = { 'a.md': source, 'b.md': '# Other' };
+  await start();
+  const editor = screen.getByRole('textbox', { name: 'Test editor' });
+  fireEvent.change(editor, { target: { value: `${source}## Draft\n` } });
+  const edited = (editor as HTMLTextAreaElement).value;
+  fireEvent.click(screen.getByRole('button', { name: 'Outline' }));
+  const duplicate = screen.getAllByRole('button', {
+    name: 'Heading level 1: Title',
+  })[1];
+  fireEvent.click(duplicate);
+  expect(backend.sourceNavigation).toEqual([5]);
+  expect(backend.previewNavigation).toEqual([source.lastIndexOf('# Title')]);
+  expect((editor as HTMLTextAreaElement).value).toBe(edited);
+  expect(
+    screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+  ).toBe(false);
+
+  backend.sourceNavigation = [];
+  backend.previewNavigation = [];
+  fireEvent.click(screen.getByRole('button', { name: 'Source' }));
+  fireEvent.click(
+    screen.getAllByRole('button', {
+      name: 'Heading level 1: Title',
+    })[1],
+  );
+  expect(backend.sourceNavigation).toEqual([5]);
+  expect(backend.previewNavigation).toEqual([]);
+
+  backend.sourceNavigation = [];
+  fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+  fireEvent.click(
+    screen.getAllByRole('button', {
+      name: 'Heading level 1: Title',
+    })[1],
+  );
+  expect(backend.sourceNavigation).toEqual([]);
+  expect(backend.previewNavigation).toEqual([source.lastIndexOf('# Title')]);
+});
+
+it('updates the open outline for unsaved edits and the active tab', async () => {
+  window.innerWidth = 1400;
+  backend.files = { 'a.md': '# A', 'b.md': '# B\n\n## B section' };
+  await start();
+  fireEvent.click(screen.getByRole('button', { name: 'Outline' }));
+  expect(
+    screen.getByRole('button', { name: 'Heading level 1: A' }),
+  ).toBeTruthy();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Test editor' }), {
+    target: { value: '# A\n\n## Unsaved section' },
+  });
+  expect(
+    screen.getByRole('button', { name: 'Heading level 2: Unsaved section' }),
+  ).toBeTruthy();
+  fireEvent.click(
+    within(
+      screen.getByRole('navigation', { name: 'Workspace files' }),
+    ).getByRole('button', { name: 'b.md' }),
+  );
+  await screen.findByRole('button', { name: 'Heading level 2: B section' });
+});
+
+it('supports keyboard closing and returns focus to the outline control', async () => {
+  window.innerWidth = 1400;
+  await start();
+  const toggle = screen.getByRole('button', { name: 'Outline' });
+  fireEvent.click(toggle);
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Heading level 1: A' }),
+    ),
+  );
+  fireEvent.keyDown(window, { key: 'Escape' });
+  await waitFor(() => expect(document.activeElement).toBe(toggle));
+  expect(screen.queryByRole('dialog', { name: 'On this page' })).toBeNull();
+});
+
 async function connections() {
   fireEvent.click(screen.getByRole('button', { name: 'Connections' }));
   await screen.findByRole('heading', { name: 'Explore your documents' });

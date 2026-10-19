@@ -1,13 +1,14 @@
 # Current architecture
 
-Updated: 2026-10-19, including session continuity and the visual experience (increments 009–010). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-19, including session continuity, the visual experience, and document section navigation (increments 009–011). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
 | Component                                       | Responsibility                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `src/App.tsx`                                   | Workspace, lazy explorer, tabs, modes, prompts, and command coordination           |
-| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, and edit events                           |
+| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, edit events, and outline navigation       |
+| `src/outline.ts`                                | Active-buffer Markdown heading extraction and nested section hierarchy             |
 | `src/text.ts`                                   | Applying changes to original text and resolving relative links                     |
 | `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Pele rendering, and sanitized SVG |
 | `src/pele-renderer.ts`                          | Lazy local Pele rendering with links and images disabled                           |
@@ -32,6 +33,8 @@ Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies c
 `src/connections.ts` parses saved Markdown with unified/remark and the same GFM/frontmatter conventions as the preview. It derives document records and directed reference pairs. `src/useConnections.ts` fetches snapshots, batches target checks, atomically replaces completed indexes, and retains a visibly stale snapshot on failure. Calls run inside App's serialized actions, preventing overlapping workspace changes and refreshes. Save errors propagate before indexing; indexing errors stay separate from successful disk writes.
 
 `src/ConnectionsView.tsx` provides reference/backlink lists, missing-target reporting, and empty/error states. `src/ConnectionGraph.tsx` renders a deterministic SVG graph, fits it with ResizeObserver, and delegates navigation to App. Editors remain mounted inside a hidden wrapper during graph use. The graph and index are derived, in-memory state, with no semantic dependency model or persistent database.
+
+`src/Preview.tsx` gives rendered headings internal source-offset identifiers for outline navigation; these identifiers do not alter authored fragment links. `src/App.tsx` derives the outline from the active buffer, coordinates source and preview jumps, and owns the transient accessible panel. The outline parser and rendered headings both normalize an initial UTF-8 BOM and omitted frontmatter consistently. Source navigation scrolls the existing CodeMirror instance without replacing it. In Split mode, only an explicit outline selection navigates both panes; subsequent scrolling remains independent.
 
 `src/styles.css` owns the shared visual tokens and responsive presentation. `src/App.tsx` derives a compact effective pane mode from viewport width while preserving the selected mode and mounted editor state. Tauri's configured platform icons are generated from `src-tauri/icons/source.svg`.
 

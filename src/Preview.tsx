@@ -1,14 +1,24 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Root, RootContent } from 'mdast';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkFrontmatter from 'remark-frontmatter';
 import DOMPurify from 'dompurify';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { diagramPng } from './diagram-image';
 import { renderPeleDiagram } from './pele-renderer';
+import { outlineTargetId } from './outline';
 let renderQueue = Promise.resolve();
 function Diagram({
   source,
@@ -130,15 +140,89 @@ function Diagram({
     </div>
   );
 }
-export function Preview({
-  content,
-  onLink,
-  filename = 'document',
-}: {
-  content: string;
-  onLink: (href: string) => void;
-  filename?: string;
-}) {
+export interface PreviewHandle {
+  scrollToOffset(offset: number): void;
+}
+
+const headingComponents: Components = {
+  h1: ({ node, children, ...props }) => (
+    <h1
+      {...props}
+      id={outlineTargetId(node?.position?.start.offset ?? 0)}
+      tabIndex={-1}
+    >
+      {children}
+    </h1>
+  ),
+  h2: ({ node, children, ...props }) => (
+    <h2
+      {...props}
+      id={outlineTargetId(node?.position?.start.offset ?? 0)}
+      tabIndex={-1}
+    >
+      {children}
+    </h2>
+  ),
+  h3: ({ node, children, ...props }) => (
+    <h3
+      {...props}
+      id={outlineTargetId(node?.position?.start.offset ?? 0)}
+      tabIndex={-1}
+    >
+      {children}
+    </h3>
+  ),
+  h4: ({ node, children, ...props }) => (
+    <h4
+      {...props}
+      id={outlineTargetId(node?.position?.start.offset ?? 0)}
+      tabIndex={-1}
+    >
+      {children}
+    </h4>
+  ),
+  h5: ({ node, children, ...props }) => (
+    <h5
+      {...props}
+      id={outlineTargetId(node?.position?.start.offset ?? 0)}
+      tabIndex={-1}
+    >
+      {children}
+    </h5>
+  ),
+  h6: ({ node, children, ...props }) => (
+    <h6
+      {...props}
+      id={outlineTargetId(node?.position?.start.offset ?? 0)}
+      tabIndex={-1}
+    >
+      {children}
+    </h6>
+  ),
+};
+
+export const Preview = forwardRef<
+  PreviewHandle,
+  {
+    content: string;
+    onLink: (href: string) => void;
+    filename?: string;
+  }
+>(function Preview({ content, onLink, filename = 'document' }, ref) {
+  const article = useRef<HTMLElement>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToOffset(offset) {
+        const heading = article.current?.querySelector<HTMLElement>(
+          `#${outlineTargetId(offset)}`,
+        );
+        heading?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        heading?.focus({ preventScroll: true });
+      },
+    }),
+    [],
+  );
   const ordinals = useMemo(() => {
     const result = new Map<number, number>();
     const tree = unified()
@@ -148,7 +232,7 @@ export function Preview({
       .parse(content.replace(/^\uFEFF/, ''));
     function walk(node: Root | RootContent) {
       if (node.type === 'code' && node.lang === 'mermaid')
-        result.set(node.position?.start.offset ?? 0, result.size + 1);
+        result.set(node?.position?.start.offset ?? 0, result.size + 1);
       if ('children' in node)
         node.children.forEach((child) => walk(child as RootContent));
     }
@@ -156,11 +240,12 @@ export function Preview({
     return result;
   }, [content]);
   return (
-    <article className="markdown">
+    <article className="markdown" ref={article}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkFrontmatter]}
         skipHtml
         components={{
+          ...headingComponents,
           pre: ({ children }) => <div className="code-block">{children}</div>,
           code: ({ className, children, node, ...props }) =>
             /language-mermaid/.test(className ?? '') ? (
@@ -196,4 +281,4 @@ export function Preview({
       </ReactMarkdown>
     </article>
   );
-}
+});

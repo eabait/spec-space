@@ -8,6 +8,7 @@ import remarkFrontmatter from 'remark-frontmatter';
 import DOMPurify from 'dompurify';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { diagramPng } from './diagram-image';
+import { renderPeleDiagram } from './pele-renderer';
 let renderQueue = Promise.resolve();
 function Diagram({
   source,
@@ -74,16 +75,7 @@ function Diagram({
       renderQueue = renderQueue.then(async () => {
         if (cancelled) return;
         try {
-          const { default: mermaid } = await import('mermaid');
-          mermaid.initialize({
-            startOnLoad: false,
-            htmlLabels: false,
-            securityLevel: 'strict',
-            theme: 'neutral',
-            suppressErrorRendering: true,
-            flowchart: { htmlLabels: false },
-          });
-          const { svg } = await mermaid.render(`diagram${id}`, source);
+          const { svg } = await renderPeleDiagram(source, `diagram${id}`);
           if (!cancelled && host.current) {
             host.current.innerHTML = DOMPurify.sanitize(svg, {
               USE_PROFILES: { svg: true, svgFilters: true },

@@ -464,6 +464,15 @@ main {
   padding: 14px;
   background: #fbfcfd;
   overflow: auto;
+  --pele-bg: #fbfcfd;
+  --pele-fg: #27384e;
+  --pele-muted: #758397;
+  --pele-line: #7186a0;
+  --pele-surface: #f0f4f8;
+  --pele-surface-alt: #e4ebf3;
+  --pele-border: #b9c6d4;
+  --pele-accent: #5279aa;
+  --pele-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 .diagram-label {
   font-size: 8px;

@@ -4,17 +4,18 @@ Updated: 2026-10-18, including bulk tab closing (increment 004). Local desktop a
 
 ## Components and boundaries
 
-| Component                                       | Responsibility                                                                        |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `src/App.tsx`                                   | Workspace, lazy explorer, tabs, modes, prompts, and command coordination              |
-| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, and edit events                              |
-| `src/text.ts`                                   | Applying changes to original text and resolving relative links                        |
-| `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Mermaid rendering, and sanitized SVG |
-| `src/styles.css`                                | Presentation and responsive layout                                                    |
-| `src-tauri/src/lib.rs`                          | Authorized workspace, native pickers, reading, creating, saving, menus, and closing   |
-| `src-tauri/tauri.conf.json`                     | Window, CSP, and bundling                                                             |
-| `src-tauri/capabilities/default.json`           | Minimal window capabilities                                                           |
-| `tests/text.test.ts` and Rust tests in `lib.rs` | Text preservation, links, and filesystem boundaries                                   |
+| Component                                       | Responsibility                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/App.tsx`                                   | Workspace, lazy explorer, tabs, modes, prompts, and command coordination            |
+| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, and edit events                            |
+| `src/text.ts`                                   | Applying changes to original text and resolving relative links                      |
+| `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Pele rendering, and sanitized SVG  |
+| `src/pele-renderer.ts`                          | Lazy local Pele rendering with links and images disabled                            |
+| `src/styles.css`                                | Presentation and responsive layout                                                  |
+| `src-tauri/src/lib.rs`                          | Authorized workspace, native pickers, reading, creating, saving, menus, and closing |
+| `src-tauri/tauri.conf.json`                     | Window, CSP, and bundling                                                           |
+| `src-tauri/capabilities/default.json`           | Minimal window capabilities                                                         |
+| `tests/text.test.ts` and Rust tests in `lib.rs` | Text preservation, links, and filesystem boundaries                                 |
 
 ## Data and operations
 
@@ -44,7 +45,7 @@ While an action is pending, background UI is inert. CodeMirror checks the synchr
 
 ## Preview and security
 
-The preview never changes the source. HTML is disabled. Mermaid runs in strict mode; SVG is sanitized with DOMPurify, and diagrams exclude links, images, and `foreignObject`. CSP restricts remote resources. See SPEC for the exact product scope and limits.
+The preview never changes the source. HTML is disabled. Pele loads lazily to render Mermaid syntax; diagram links and images are disabled, and SVG is sanitized with DOMPurify, excluding links, images, and `foreignObject`. CSP restricts remote resources. See SPEC for the exact product scope and limits.
 
 ## Maintainability
 

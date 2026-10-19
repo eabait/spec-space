@@ -1,6 +1,6 @@
 # 007 — Evaluate Pele as a Mermaid renderer
 
-Status: Accepted for evaluation on 2026-10-19.
+Status: Implemented (evaluation complete; production renderer unchanged). Date: 2026-10-19.
 
 ## Problem and intended outcome
 
@@ -37,4 +37,4 @@ Replacing the production renderer, changing diagram output or themes, changing t
 
 ## Acceptance and plan
 
-Accepted for comparison by the user with “hagamos la comparación” on 2026-10-19. See [plan 007](../plans/007-pele-renderer-evaluation.md).
+Accepted for comparison by the user with “hagamos la comparación” on 2026-10-19. The evaluation recommends proceeding to a separate, controlled integration increment; it does not authorize changing the production renderer. See [plan 007](../plans/007-pele-renderer-evaluation.md) for results and limitations.

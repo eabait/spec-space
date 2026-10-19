@@ -10,7 +10,9 @@
 
 - [006 — Precise text selection](006-precise-text-selection.md): discarded by the user on 2026-10-19 after packaged-app validation; Preview works well and the Source issue is accepted as a tradeoff.
 
-- [007 — Evaluate Pele as a Mermaid renderer](007-pele-renderer-evaluation.md): accepted for comparison on 2026-10-19; no production renderer changes are included.
+- [007 — Evaluate Pele as a Mermaid renderer](007-pele-renderer-evaluation.md): evaluation complete; recommends a separately accepted integration increment. Production renderer unchanged.
+
+- [008 — Replace Mermaid with Pele for diagram previews](008-pele-mermaid-renderer.md): accepted and in progress; the observed Pele visual style change is accepted.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md).
 

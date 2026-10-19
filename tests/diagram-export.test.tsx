@@ -17,13 +17,10 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: mocks.invoke,
 }));
 vi.mock('../src/diagram-image', () => ({ diagramPng: mocks.png }));
-vi.mock('mermaid', () => ({
-  default: {
-    initialize() {},
-    render: async (_id: string, source: string) => {
-      if (source === 'invalid') throw new Error('Invalid diagram');
-      return { svg: `<svg viewBox="0 0 100 50"><text>${source}</text></svg>` };
-    },
+vi.mock('../src/pele-renderer', () => ({
+  renderPeleDiagram: async (source: string) => {
+    if (source === 'invalid') throw new Error('<img src=x onerror=alert(1)>');
+    return { svg: `<svg viewBox="0 0 100 50"><text>${source}</text></svg>` };
   },
 }));
 afterEach(() => {
@@ -62,6 +59,10 @@ it('exports the selected diagram with its document name and blocks stale and inv
     ).disabled,
   ).toBe(true);
   await screen.findByRole('alert');
+  expect(screen.getByRole('alert').textContent).toBe(
+    'Error: <img src=x onerror=alert(1)>',
+  );
+  expect(document.querySelector('img')).toBeNull();
   expect(
     (
       screen.getByRole('button', {

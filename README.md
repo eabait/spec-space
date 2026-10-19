@@ -1,6 +1,6 @@
 # SpecSpace Desktop
 
-A focused local Markdown workspace for software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Mermaid. No account, server, cloud integration, or collaboration service.
+A focused local Markdown workspace for software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Pele for Mermaid-syntax previews. No account, server, cloud integration, or collaboration service.
 
 ## Run on macOS
 
@@ -29,18 +29,30 @@ Creates `src-tauri/target/release/bundle/macos/SpecSpace.app`. This local build 
 
 `npm run dev` runs only the browser UI; local filesystem operations require the desktop app.
 
-### Temporary validation toolchain
+### Set up Rust for local builds
 
-The initial implementation was verified with Rust installed under `/private/tmp`, without changing shell configuration. If that temporary toolchain is still present, run:
+macOS desktop builds need Apple's Command Line Tools and the stable Rust toolchain. Install the Command Line Tools once if needed:
 
 ```sh
-export RUSTUP_HOME=/private/tmp/spec-space-rustup
-export CARGO_HOME=/private/tmp/spec-space-cargo
-export PATH="$CARGO_HOME/bin:$PATH"
-npm run tauri dev
+xcode-select --install
 ```
 
-For ongoing development, install Rust normally. If npm reports a cache permission error, use `npm ci --cache /private/tmp/spec-space-npm-cache`.
+Install Rust with rustup, then open a new terminal. If the current shell does not recognize `cargo`, load rustup's environment and select stable:
+
+```sh
+curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+source "$HOME/.cargo/env"
+rustup default stable
+```
+
+Install the project dependencies and build the local macOS app bundle:
+
+```sh
+npm ci
+npm run tauri build
+```
+
+The bundle is written to `src-tauri/target/release/bundle/macos/SpecSpace.app`. For a debug build, run `npm run tauri -- build --debug`.
 
 ## Project documentation
 

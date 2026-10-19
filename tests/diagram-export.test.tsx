@@ -41,7 +41,7 @@ it('exports the selected diagram with its document name and blocks stale and inv
   expect(save.disabled).toBe(true);
   await waitFor(() => expect(save.disabled).toBe(false));
   fireEvent.click(save);
-  await screen.findByText('PNG saved.');
+  await screen.findByText('PNG saved');
   expect(mocks.png.mock.calls[0][0].textContent).toBe('second');
   expect(mocks.invoke).toHaveBeenCalledWith('save_diagram_png', {
     bytes: [137, 80, 78, 71],

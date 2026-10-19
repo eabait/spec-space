@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
-  BookOpen,
   Network,
   ChevronDown,
   ChevronRight,
@@ -48,6 +47,37 @@ interface LoadedSession {
 type Choice = 'save' | 'discard' | 'cancel';
 const sample =
   '# A clearer space for your specifications\n\nOpen a local folder to start working. Your Markdown stays yours.\n\n## Built for technical thinking\n\n- Edit source without changing its format\n- Keep architecture and requirements side by side\n- Preview diagrams as you write\n\n```mermaid\nflowchart LR\n  A[Local files] --> B[Markdown editor]\n  B --> C[Live preview]\n```\n\n> Local files. Focused editing. No account required.\n';
+function BlueprintMark({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+    >
+      <path
+        d="M16 5h8v8h-8zM5 25h9v9H5zM26 25h9v9h-9z"
+        fill="currentColor"
+        opacity=".96"
+      />
+      <path
+        d="M18 13 11 24m11-11 7 11"
+        stroke="#d99a61"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 12V3h9m16 0h9v9m0 16v9h-9M12 37H3v-9"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity=".62"
+      />
+    </svg>
+  );
+}
 export function App() {
   const [workspace, setWorkspace] = useState('');
   const connections = useConnections();
@@ -63,6 +93,7 @@ export function App() {
   const refreshConnections = useRef(connections.refresh);
   refreshConnections.current = connections.refresh;
   const [mode, setMode] = useState<'source' | 'split' | 'preview'>('split');
+  const [compactLayout, setCompactLayout] = useState(false);
   const [sidebar, setSidebar] = useState(true);
   const [filter, setFilter] = useState('');
   const [busy, setBusy] = useState(false);
@@ -81,6 +112,7 @@ export function App() {
     paths?: string[];
   } | null>(null);
   const selected = tabs.find((t) => t.path === active);
+  const visibleMode = compactLayout && mode === 'split' ? 'preview' : mode;
   const dirty = (tab: Tab) => tab.content !== tab.saved;
   const ask = (message: string, save = true) =>
     new Promise<Choice>((resolve) => setPrompt({ message, resolve, save }));
@@ -97,6 +129,12 @@ export function App() {
       lock.current = false;
       setBusy(false);
     }
+  }, []);
+  useEffect(() => {
+    const updateLayout = () => setCompactLayout(window.innerWidth <= 1100);
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    return () => window.removeEventListener('resize', updateLayout);
   }, []);
   useEffect(() => {
     if (!isTauri()) {
@@ -590,7 +628,7 @@ export function App() {
       <header className="titlebar" inert={busy}>
         <div className="brand">
           <span className="brand-icon">
-            <BookOpen size={18} />
+            <BlueprintMark size={22} />
           </span>
           SpecSpace<span className="desktop-label">DESKTOP</span>
         </div>
@@ -781,16 +819,18 @@ export function App() {
               {selected ? selected.path : 'A space for clear thinking'}
             </div>
             <div className="view-modes" aria-label="Editor mode">
-              {(['source', 'split', 'preview'] as const).map((item) => (
-                <button
-                  key={item}
-                  aria-pressed={mode === item}
-                  className={mode === item ? 'active' : ''}
-                  onClick={() => setMode(item)}
-                >
-                  {item[0].toUpperCase() + item.slice(1)}
-                </button>
-              ))}
+              {(['source', 'split', 'preview'] as const)
+                .filter((item) => !compactLayout || item !== 'split')
+                .map((item) => (
+                  <button
+                    key={item}
+                    aria-pressed={mode === item}
+                    className={mode === item ? 'active' : ''}
+                    onClick={() => setMode(item)}
+                  >
+                    {item[0].toUpperCase() + item.slice(1)}
+                  </button>
+                ))}
             </div>
             <button
               title="Reload from disk"
@@ -831,7 +871,7 @@ export function App() {
           )}
           <div className="editor-workspace" hidden={showConnections}>
             {selected ? (
-              <div className={`document-panes ${mode}`}>
+              <div className={`document-panes ${visibleMode}`}>
                 <section className="source-pane" aria-label="Markdown source">
                   <div className="pane-label">
                     MARKDOWN <span>Source of truth</span>

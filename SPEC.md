@@ -1,6 +1,6 @@
 # SpecSpace — current product
 
-Status: current product, updated on 2026-10-19 with [increment 009](specs/009-session-continuity.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
+Status: current product, updated on 2026-10-19 with [increment 010](specs/010-visual-experience-revamp.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
 ## Purpose and document model
 
@@ -13,6 +13,7 @@ The primary open action is **File → Open Folder…** (⌘O), in the native men
 - Native folder picker; lazily expanded directory explorer with refresh and filename filtering within expanded folders.
 - **File → Close All Tabs / Close Other Tabs**, also available by right-clicking any tab, close all documents or retain the clicked tab. One prompt lists only affected dirty paths and offers Save All, Discard Changes, or Cancel. A failed save keeps every tab open and retains any earlier successful saves. The active tab and its undo history survive Close Other Tabs; closing all keeps the workspace open.
 - Multiple document tabs, dirty indicators, independent editor undo histories, and source / split / preview layouts.
+- A warm editorial and blueprint-inspired visual system across workspace chrome, source editing, Markdown reading, diagrams, and Connections. Wide windows use a broad reading canvas beside Source; at compact widths the existing controls focus on Source or Preview while keeping the editor mounted and preserving its state. The macOS icon uses connected architectural modules rather than a book motif.
 - After a normal quit, restore the last workspace and open Markdown tabs from current disk content, preserving tab order and the active document. Session metadata stores paths and navigation state locally; unsaved text, editor history, and view state are not restored. Unavailable documents are skipped with a status notice.
 - CodeMirror Markdown editing with line numbers, syntax highlighting, search, undo/redo, and line wrapping.
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced local Mermaid-syntax rendering through Pele, with inline errors.

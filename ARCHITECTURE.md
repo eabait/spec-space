@@ -1,6 +1,6 @@
 # Current architecture
 
-Updated: 2026-10-19, including session continuity (increment 009). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-19, including session continuity and the visual experience (increments 009–010). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
@@ -32,6 +32,8 @@ Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies c
 `src/connections.ts` parses saved Markdown with unified/remark and the same GFM/frontmatter conventions as the preview. It derives document records and directed reference pairs. `src/useConnections.ts` fetches snapshots, batches target checks, atomically replaces completed indexes, and retains a visibly stale snapshot on failure. Calls run inside App's serialized actions, preventing overlapping workspace changes and refreshes. Save errors propagate before indexing; indexing errors stay separate from successful disk writes.
 
 `src/ConnectionsView.tsx` provides reference/backlink lists, missing-target reporting, and empty/error states. `src/ConnectionGraph.tsx` renders a deterministic SVG graph, fits it with ResizeObserver, and delegates navigation to App. Editors remain mounted inside a hidden wrapper during graph use. The graph and index are derived, in-memory state, with no semantic dependency model or persistent database.
+
+`src/styles.css` owns the shared visual tokens and responsive presentation. `src/App.tsx` derives a compact effective pane mode from viewport width while preserving the selected mode and mounted editor state. Tauri's configured platform icons are generated from `src-tauri/icons/source.svg`.
 
 `tests/connections.test.ts` covers Markdown semantics and resolution. `tests/connections-interactions.test.tsx` uses a simulated IPC boundary to cover saved/dirty buffers, navigation, save/scan failures, retries, refresh, and workspace switching. Native checks supplement these tests; they do not replace filesystem tests in Rust.
 

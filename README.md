@@ -2,6 +2,8 @@
 
 A focused local Markdown workspace for software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Pele for Mermaid-syntax previews. No account, server, cloud integration, or collaboration service.
 
+The interface uses a warm editorial reading surface and a connected-module blueprint identity. At wide sizes, Source and Preview can share the document view; compact windows let you focus on either pane with the existing controls.
+
 ## Run on macOS
 
 Prerequisites: Node.js 22.12+ (Node 24 recommended), npm, the stable Rust toolchain installed via [rustup](https://rustup.rs), and Apple's Command Line Tools (`xcode-select --install`).

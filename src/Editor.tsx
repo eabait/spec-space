@@ -37,7 +37,12 @@ export function Editor({
           markdown(),
           EditorView.lineWrapping,
           EditorView.theme({
-            '&': { height: '100%', fontSize: '13px' },
+            '&': {
+              height: '100%',
+              fontSize: '13px',
+              backgroundColor: '#f6f3eb',
+              color: '#213746',
+            },
             '.cm-scroller': {
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
               lineHeight: '1.8',
@@ -45,11 +50,17 @@ export function Editor({
             '.cm-content': { padding: '24px 0' },
             '.cm-line': { padding: '0 20px' },
             '.cm-gutters': {
-              backgroundColor: '#f7f8fa',
-              color: '#9ca5b3',
+              backgroundColor: '#f2efe6',
+              color: '#8a928f',
               border: 'none',
             },
-            '.cm-activeLine': { backgroundColor: '#eef3fb' },
+            '.cm-activeLine': { backgroundColor: '#e9eee8' },
+            '.cm-activeLineGutter': { color: '#2c7775' },
+            '.cm-cursor': { borderLeftColor: '#277b78' },
+            '.cm-selectionBackground': { backgroundColor: '#cfe3de' },
+            '&.cm-focused .cm-selectionBackground': {
+              backgroundColor: '#cfe3de',
+            },
             '&.cm-focused': { outline: 'none' },
           }),
           EditorView.updateListener.of((update) => {

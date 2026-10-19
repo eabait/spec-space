@@ -14,7 +14,8 @@
 
 - [008 — Replace Mermaid with Pele for diagram previews](008-pele-mermaid-renderer.md): implemented locally; native visual and PNG checks recorded in plan 008.
 
-- [009 — Restore the last workspace and open tabs](009-session-continuity.md): accepted on 2026-10-19; pending implementation. See plan 009.
+- [009 — Restore the last workspace and open tabs](009-session-continuity.md): implemented locally; validation evidence and closure in plan 009.
+- [010 — Visual experience for reading and navigating specifications](010-visual-experience-revamp.md): implemented locally and validated by the user on 2026-10-19; see plan 010.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 

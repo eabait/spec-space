@@ -10,6 +10,8 @@
 
 - [006 — Precise text selection](006-precise-text-selection.md): discarded by the user on 2026-10-19 after packaged-app validation; Preview works well and the Source issue is accepted as a tradeoff.
 
+- [007 — Evaluate Pele as a Mermaid renderer](007-pele-renderer-evaluation.md): accepted for comparison on 2026-10-19; no production renderer changes are included.
+
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md).
 
 Follow [SDD.md](../SDD.md). Create `NNN-name.md` with this minimum structure:
@@ -24,4 +26,4 @@ Follow [SDD.md](../SDD.md). Create `NNN-name.md` with this minimum structure:
 - Acceptance: date and explicit user evidence; pending until it exists.
 - Link to the matching plan and closure evidence.
 
-Keep proposals separate from the current contract. The next available number is 007; verify before assigning it.
+Keep proposals separate from the current contract. The next available number is 008; verify before assigning it.

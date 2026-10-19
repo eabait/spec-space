@@ -6,7 +6,9 @@
 
 - [007 — Evaluate Pele as a Mermaid renderer](007-pele-renderer-evaluation.md): complete; recommends a separately accepted integration increment.
 
-- [008 — Replace Mermaid with Pele for diagram previews](008-pele-mermaid-renderer.md): in progress; accepted 2026-10-19.
+- [008 — Replace Mermaid with Pele for diagram previews](008-pele-mermaid-renderer.md): complete; accepted 2026-10-19.
+
+- [009 — Restore the last workspace and open tabs](009-session-continuity.md): complete; accepted 2026-10-19.
 
 - [001 — Connected Specifications](001-connected-specifications.md): implementation and validation evidence.
 - [003 — Create Markdown documents](003-create-markdown-documents.md): complete local implementation and validation evidence.

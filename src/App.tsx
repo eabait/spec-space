@@ -36,6 +36,15 @@ interface Tab extends Document {
   saved: string;
   generation: number;
 }
+interface SessionRecord {
+  workspace: string;
+  tabs: string[];
+  active: number | null;
+}
+interface LoadedSession {
+  record: SessionRecord;
+  skipped: number;
+}
 type Choice = 'save' | 'discard' | 'cancel';
 const sample =
   '# A clearer space for your specifications\n\nOpen a local folder to start working. Your Markdown stays yours.\n\n## Built for technical thinking\n\n- Edit source without changing its format\n- Keep architecture and requirements side by side\n- Preview diagrams as you write\n\n```mermaid\nflowchart LR\n  A[Local files] --> B[Markdown editor]\n  B --> C[Live preview]\n```\n\n> Local files. Focused editing. No account required.\n';
@@ -49,6 +58,10 @@ export function App() {
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
   const [active, setActive] = useState('');
+  const [sessionReady, setSessionReady] = useState(false);
+  const sessionWrite = useRef(Promise.resolve());
+  const refreshConnections = useRef(connections.refresh);
+  refreshConnections.current = connections.refresh;
   const [mode, setMode] = useState<'source' | 'split' | 'preview'>('split');
   const [sidebar, setSidebar] = useState(true);
   const [filter, setFilter] = useState('');
@@ -85,6 +98,91 @@ export function App() {
       setBusy(false);
     }
   }, []);
+  useEffect(() => {
+    if (!isTauri()) {
+      setSessionReady(true);
+      return;
+    }
+    setBusy(true);
+    setStatus('Restoring previous session…');
+    let disposed = false;
+    void (async () => {
+      try {
+        const loaded = await invoke<LoadedSession | null>('load_session');
+        if (disposed) return;
+        if (!loaded) return;
+        const record = loaded.record;
+        let root: string;
+        try {
+          root = await invoke<string>('restore_workspace', {
+            path: record.workspace,
+          });
+        } catch {
+          setStatus('The previous workspace is unavailable. Open it again.');
+          return;
+        }
+        const entries = await invoke<Entry[]>('list_directory', { path: '' });
+        if (disposed) return;
+        setWorkspace(root);
+        setTree({ '': entries });
+        const opened: Tab[] = [];
+        let skipped = loaded.skipped;
+        for (const path of record.tabs) {
+          try {
+            const document = await invoke<Document>('open_document', { path });
+            opened.push({
+              ...document,
+              saved: document.content,
+              generation: 0,
+            });
+          } catch {
+            skipped += 1;
+          }
+        }
+        if (disposed) return;
+        setTabs(opened);
+        const requestedActive =
+          record.active === null ? undefined : record.tabs[record.active];
+        setActive(
+          opened.find((tab) => tab.path === requestedActive)?.path ??
+            opened[0]?.path ??
+            '',
+        );
+        await refreshConnections.current();
+        setStatus(
+          skipped
+            ? `Session restored; ${skipped} unavailable document${skipped === 1 ? '' : 's'} skipped.`
+            : 'Session restored',
+        );
+      } catch (e) {
+        if (!disposed)
+          setStatus(`Could not restore the previous session: ${String(e)}`);
+      } finally {
+        if (!disposed) {
+          setSessionReady(true);
+          setBusy(false);
+        }
+      }
+    })();
+    return () => {
+      disposed = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!sessionReady || !isTauri() || !workspace) return;
+    const record: SessionRecord = {
+      workspace,
+      tabs: tabs.map((tab) => tab.path),
+      active:
+        tabs.findIndex((tab) => tab.path === active) >= 0
+          ? tabs.findIndex((tab) => tab.path === active)
+          : null,
+    };
+    sessionWrite.current = sessionWrite.current
+      .catch(() => undefined)
+      .then(() => invoke<void>('save_session', { record }))
+      .catch((e) => setStatus(`Could not save session: ${String(e)}`));
+  }, [workspace, tabs, active, sessionReady]);
   async function save(tab: Tab) {
     const revision = await invoke<string>('write_document', {
       path: tab.path,
@@ -365,7 +463,24 @@ export function App() {
   const closeHandler = useRef<() => void>(() => {});
   closeHandler.current = () =>
     void perform(async () => {
-      if (await protect(tabsRef.current)) await getCurrentWindow().destroy();
+      if (!(await protect(tabsRef.current))) return;
+      if (workspace) {
+        const currentTabs = tabsRef.current;
+        const record: SessionRecord = {
+          workspace,
+          tabs: currentTabs.map((tab) => tab.path),
+          active:
+            currentTabs.findIndex((tab) => tab.path === active) >= 0
+              ? currentTabs.findIndex((tab) => tab.path === active)
+              : null,
+        };
+        sessionWrite.current = sessionWrite.current
+          .catch(() => undefined)
+          .then(() => invoke<void>('save_session', { record }))
+          .catch((e) => setStatus(`Could not save session: ${String(e)}`));
+        await sessionWrite.current;
+      }
+      await getCurrentWindow().destroy();
     });
   useEffect(() => {
     if (!isTauri()) return;

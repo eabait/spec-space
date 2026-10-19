@@ -15,13 +15,24 @@ const backend = vi.hoisted(() => ({
   failScan: false,
   failSave: false,
   nextRoot: '/workspace',
+  session: null as {
+    record: { workspace: string; tabs: string[]; active: number | null };
+    skipped: number;
+  } | null,
+  savedSessions: [] as unknown[],
   calls: [] as string[],
 }));
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => true,
-  invoke: async (command: string, args: Record<string, string>) => {
+  invoke: async (command: string, args: Record<string, any>) => {
     backend.calls.push(command);
     if (command === 'set_tab_menu_state') return;
+    if (command === 'load_session') return backend.session;
+    if (command === 'save_session') {
+      backend.savedSessions.push(args.record);
+      return;
+    }
+    if (command === 'restore_workspace') return args.path;
     if (command === 'choose_workspace') return backend.nextRoot;
     if (command === 'list_directory')
       return Object.keys(backend.files).map((path) => ({
@@ -47,12 +58,14 @@ vi.mock('@tauri-apps/api/core', () => ({
         status: 'missing',
         canonical: null,
       }));
-    if (command === 'open_document')
+    if (command === 'open_document') {
+      if (!(args.path in backend.files)) throw new Error('Missing document');
       return {
         path: args.path,
         content: backend.files[args.path],
         revision: backend.files[args.path],
       };
+    }
     if (command === 'write_document') {
       if (backend.failSave) throw new Error('File changed on disk');
       backend.files[args.path] = args.content;
@@ -97,9 +110,18 @@ beforeEach(() => {
   backend.failSave = false;
   backend.calls = [];
   backend.nextRoot = '/workspace';
+  backend.session = null;
+  backend.savedSessions = [];
 });
 async function start() {
   render(<App />);
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole('button', { name: /Open a local folder/ })
+        .hasAttribute('disabled'),
+    ).toBe(false),
+  );
   fireEvent.click(screen.getByRole('button', { name: /Open a local folder/ }));
   await waitFor(() =>
     expect(
@@ -211,4 +233,38 @@ it('clears connections when switching workspaces and rebuilds when reopening', a
   expect(
     screen.queryByRole('button', { name: 'Open a.md from graph' }),
   ).toBeNull();
+});
+
+it('restores valid session tabs from current disk content in order and saves navigation metadata only', async () => {
+  backend.session = {
+    record: {
+      workspace: '/workspace',
+      tabs: ['b.md', 'missing.md', 'a.md'],
+      active: 2,
+    },
+    skipped: 1,
+  };
+  backend.files = { 'a.md': '# A current', 'b.md': '# B current' };
+  render(<App />);
+
+  await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(2));
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+    'b.md',
+    'a.md',
+  ]);
+  expect(
+    (
+      screen.getByRole('textbox', {
+        name: 'Test editor',
+      }) as HTMLTextAreaElement
+    ).value,
+  ).toBe('# A current');
+  expect(screen.getByText(/2 unavailable documents skipped/)).toBeTruthy();
+  await waitFor(() => expect(backend.savedSessions.length).toBeGreaterThan(0));
+  expect(backend.savedSessions.at(-1)).toEqual({
+    workspace: '/workspace',
+    tabs: ['b.md', 'a.md'],
+    active: 1,
+  });
+  expect(JSON.stringify(backend.savedSessions)).not.toContain('# B current');
 });

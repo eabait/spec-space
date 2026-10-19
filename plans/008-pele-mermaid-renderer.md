@@ -1,6 +1,6 @@
 # Plan 008 — Replace Mermaid with Pele for diagram previews
 
-Status: In progress. Date: 2026-10-19.
+Status: Complete. Date: 2026-10-19.
 
 Contract: [SPEC 008](../specs/008-pele-mermaid-renderer.md), accepted with “avanzar” on 2026-10-19.
 
@@ -37,7 +37,7 @@ Expected: `package.json`, lockfile, `src/Preview.tsx`, a renderer adapter if war
 - [x] Implement Pele rendering and remove Mermaid dependency.
 - [x] Add/update meaningful frontend tests.
 - [x] Run required automated checks.
-- [ ] Complete visual and native PNG interaction checks in a clean isolated packaged-app workspace.
+- [x] Complete visual and native PNG interaction checks in a clean isolated packaged-app workspace.
 
 ## Corpus and results
 
@@ -49,4 +49,8 @@ Validation: all 34 frontend tests passed, including 11 Pele renderer cases and t
 
 At the user's request on 2026-10-19, `npm run tauri build` also produced the standard 11.26 MiB bundle at `src-tauri/target/release/bundle/macos/SpecSpace.app`. This build used the same temporary Rust toolchain; README now documents installing Rust persistently through rustup.
 
-The QA app opened, but it showed an already populated workspace. To protect that session, no workspace was changed and no save/copy buttons were pressed. Thus this verifies packaging and launch, not pixel-level visual appearance or native PNG save/clipboard behavior. Those checks remain outstanding. The temporary QA app and workspace files are under `/private/tmp/spec-space-pele-qa` and `/private/tmp/spec-space-pele-target`; they can be removed after any desired manual inspection.
+2026-10-19: Rebuilt the isolated `SpecSpace Pele QA.app` bundle because the previously retained bundle was incomplete (Launch Services could not find its executable; direct launch exited with status 134). Opened this QA-only app as a separate process while preserving the normal SpecSpace session. Opened `/private/tmp/spec-space-pele-qa/workspace/Architecture.md` from the disposable workspace. Visually inspected the checked-in flowchart in Split mode; Pele rendered the four nodes and edges legibly in the current neutral style. **Save diagram as PNG** wrote `/private/tmp/spec-space-pele-qa/workspace/SpecSpace-pele-qa.png`; file inspection confirmed a valid 1478 × 128 RGBA PNG. **Copy diagram as image** displayed “Image copied”. This confirms native save and clipboard command feedback; unlike the earlier SPEC 005 check, this task did not paste the clipboard result into Preview or TextEdit, so cross-app paste remains unverified specifically for Pele output. No Markdown content was edited.
+
+The temporary QA app and workspace remain under `/private/tmp/spec-space-pele-qa` and `/private/tmp/spec-space-pele-target` for optional inspection.
+
+SPEC 008's visual and native action checks are complete with the limits above. The automated checks and packaged build are recorded earlier in this plan. No commit, publication, or deployment was performed.

@@ -1,27 +1,27 @@
 # Current architecture
 
-Updated: 2026-10-18, including bulk tab closing (increment 004). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-19, including session continuity (increment 009). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
-| Component                                       | Responsibility                                                                      |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `src/App.tsx`                                   | Workspace, lazy explorer, tabs, modes, prompts, and command coordination            |
-| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, and edit events                            |
-| `src/text.ts`                                   | Applying changes to original text and resolving relative links                      |
-| `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Pele rendering, and sanitized SVG  |
-| `src/pele-renderer.ts`                          | Lazy local Pele rendering with links and images disabled                            |
-| `src/styles.css`                                | Presentation and responsive layout                                                  |
-| `src-tauri/src/lib.rs`                          | Authorized workspace, native pickers, reading, creating, saving, menus, and closing |
-| `src-tauri/tauri.conf.json`                     | Window, CSP, and bundling                                                           |
-| `src-tauri/capabilities/default.json`           | Minimal window capabilities                                                         |
-| `tests/text.test.ts` and Rust tests in `lib.rs` | Text preservation, links, and filesystem boundaries                                 |
+| Component                                       | Responsibility                                                                     |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `src/App.tsx`                                   | Workspace, lazy explorer, tabs, modes, prompts, and command coordination           |
+| `src/Editor.tsx`                                | CodeMirror 6 instances, per-tab history, and edit events                           |
+| `src/text.ts`                                   | Applying changes to original text and resolving relative links                     |
+| `src/Preview.tsx`                               | React Markdown, GFM, omitted frontmatter, queued Pele rendering, and sanitized SVG |
+| `src/pele-renderer.ts`                          | Lazy local Pele rendering with links and images disabled                           |
+| `src/styles.css`                                | Presentation and responsive layout                                                 |
+| `src-tauri/src/lib.rs`                          | Authorized workspace, session metadata, native pickers, reading, saving, menus     |
+| `src-tauri/tauri.conf.json`                     | Window, CSP, and bundling                                                          |
+| `src-tauri/capabilities/default.json`           | Minimal window capabilities                                                        |
+| `tests/text.test.ts` and Rust tests in `lib.rs` | Text preservation, links, and filesystem boundaries                                |
 
 ## Data and operations
 
-Rust maintains `Mutex<Option<PathBuf>>`: a canonicalized root selected through the native dialog. React tracks open documents with `content`, `saved`, `revision`, and a generation used to recreate the editor after reload. The session is not persisted and no database is used.
+Rust maintains `Mutex<Option<PathBuf>>`: a canonicalized root selected through the native dialog. React tracks open documents with `content`, `saved`, `revision`, and a generation used to recreate the editor after reload. On normal relaunch, a small Rust-owned JSON record in Tauri's app config directory restores the last workspace, relative tab paths in order, and the active tab. It contains no document contents; restored files are read and validated through the existing Rust path boundary and start clean. Missing files are skipped, and a stale workspace leaves the welcome screen available. The app does not recover unsaved edits, editor history, or view state.
 
-IPC commands: `choose_workspace`, `create_markdown_document`, `list_directory`, `open_document`, `write_document`, `workspace_snapshot`, and `check_reference_targets`. React has no general filesystem API. Rust resolves relative paths, rejects symlink components, requires containment within the root, and uses exclusive creation for new documents.
+IPC commands include `load_session`, `save_session`, and `restore_workspace` alongside `choose_workspace`, `create_markdown_document`, `list_directory`, `open_document`, `write_document`, `workspace_snapshot`, and `check_reference_targets`. Session IPC reads and writes only the bounded navigation record; React has no general filesystem API. Rust resolves document paths, rejects symlink components, requires containment within the root, and uses exclusive creation for new documents.
 
 Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies changes to the original text while preserving the BOM and untouched line endings. Saving checks the revision, writes and syncs a temporary file next to the destination, checks again, then renames it. A concurrency window remains between the final check and rename; external writers are not locked out.
 
@@ -38,6 +38,8 @@ Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies c
 ## Menus and lifecycle
 
 File → Open Folder… emits `open-folder-requested` to the main window. The React listener uses the same guarded open flow as the welcome screen. ⌘O is registered natively; the web handler is only a browser fallback. Closing the window or quitting uses the unsaved-document guard. Force quit cannot protect edits in memory.
+
+Session metadata is written atomically by Rust after workspace/tab navigation changes and before a guarded normal quit completes. The record is bounded and validates absolute workspace paths, relative Markdown paths, duplicate entries, and the active index. Startup canonicalizes the saved workspace and rejects a path that now resolves differently; each tab is reopened through `open_document`, which rejects traversal, symlinks, invalid Markdown, non-UTF-8 content, and oversized files. Persistence errors do not prevent editing or normal quit.
 
 Bulk tab actions emit `close-tabs-requested` with an all/others scope. Rust stores menu handles in `TabMenu`; `set_tab_menu_state` only updates their enabled state. React queues availability updates in order and revalidates targets inside its action lock. It removes tabs only after the targeted dirty documents have been resolved; partial-save failures retain every editor and the successful saves already completed. The bulk prompt lists affected relative paths in a bounded scrollable list.
 

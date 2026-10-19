@@ -1,6 +1,6 @@
 # 008 — Replace Mermaid with Pele for diagram previews
 
-Status: In progress. Accepted: 2026-10-19.
+Status: Implemented. Accepted: 2026-10-19. Implemented: 2026-10-19.
 
 ## Problem and intended outcome
 

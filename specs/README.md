@@ -12,9 +12,11 @@
 
 - [007 — Evaluate Pele as a Mermaid renderer](007-pele-renderer-evaluation.md): evaluation complete; recommends a separately accepted integration increment. Production renderer unchanged.
 
-- [008 — Replace Mermaid with Pele for diagram previews](008-pele-mermaid-renderer.md): accepted and in progress; the observed Pele visual style change is accepted.
+- [008 — Replace Mermaid with Pele for diagram previews](008-pele-mermaid-renderer.md): implemented locally; native visual and PNG checks recorded in plan 008.
 
-The baseline predating this workflow is documented in [SPEC.md](../SPEC.md).
+- [009 — Restore the last workspace and open tabs](009-session-continuity.md): accepted on 2026-10-19; pending implementation. See plan 009.
+
+The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 
 Follow [SDD.md](../SDD.md). Create `NNN-name.md` with this minimum structure:
 
@@ -28,4 +30,4 @@ Follow [SDD.md](../SDD.md). Create `NNN-name.md` with this minimum structure:
 - Acceptance: date and explicit user evidence; pending until it exists.
 - Link to the matching plan and closure evidence.
 
-Keep proposals separate from the current contract. The next available number is 008; verify before assigning it.
+Keep proposals separate from the current contract. Verify the repository before assigning each new number.

@@ -132,6 +132,13 @@ beforeEach(() => {
 });
 async function start() {
   render(<App />);
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole('button', { name: /Open a local folder/ })
+        .hasAttribute('disabled'),
+    ).toBe(false),
+  );
   fireEvent.click(screen.getByRole('button', { name: /Open a local folder/ }));
   await waitFor(() =>
     expect(

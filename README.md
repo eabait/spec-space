@@ -19,6 +19,8 @@ With a workspace open, use File → New Markdown Document… (⌘N) or the plus 
 
 Use **File → Close All Tabs** or **Close Other Tabs**, or right-click a tab for the same actions. Pending changes offer Save All, Discard Changes, or Cancel. A save failure keeps all tabs open; earlier successful saves remain saved.
 
+After a normal quit, SpecSpace restores the last workspace and open Markdown tabs from their current disk contents, including tab order and the active document. Unsaved edits, undo history, and view state are not restored. Missing documents are skipped with a status notice.
+
 Connections update after saves, reloads, and workspace opening. Use **Refresh connections** after external file changes; **Refresh workspace** also updates the explorer. Neither refresh overwrites pending editor changes. Scan limits, skipped files, and stale results are shown in the view. See [SPEC](SPEC.md) for exact limits and exclusions.
 
 ```sh

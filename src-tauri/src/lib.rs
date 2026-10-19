@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
@@ -14,6 +14,19 @@ mod image_export;
 const MAX_BYTES: u64 = 8 * 1024 * 1024;
 #[derive(Default)]
 struct Workspace(Mutex<Option<PathBuf>>);
+#[derive(Default)]
+struct SessionStore(Mutex<Option<PathBuf>>);
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+struct SessionRecord {
+    workspace: String,
+    tabs: Vec<String>,
+    active: Option<usize>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+struct LoadedSession {
+    record: SessionRecord,
+    skipped: usize,
+}
 #[derive(Serialize)]
 struct Entry {
     name: String,
@@ -102,6 +115,87 @@ fn read_document(root: &Path, relative: &str) -> Result<Document, String> {
         content,
         revision: revision(&bytes),
     })
+}
+fn valid_session_workspace(record: &SessionRecord) -> Result<(), String> {
+    if !Path::new(&record.workspace).is_absolute() || record.workspace.contains('\0') {
+        return Err("Invalid workspace path in session.".into());
+    }
+    Ok(())
+}
+fn safe_session_tab(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 4096
+        && markdown(Path::new(path))
+        && Path::new(path)
+            .components()
+            .all(|part| matches!(part, Component::Normal(_)))
+}
+fn valid_session_paths(record: &SessionRecord) -> Result<(), String> {
+    valid_session_workspace(record)?;
+    if record.tabs.len() > 500 {
+        return Err("Session contains too many document paths.".into());
+    }
+    let mut unique = std::collections::HashSet::new();
+    for path in &record.tabs {
+        if !safe_session_tab(path) {
+            return Err("Session contains an invalid Markdown path.".into());
+        }
+        if !unique.insert(path) {
+            return Err("Session contains duplicate document paths.".into());
+        }
+    }
+    if record
+        .active
+        .is_some_and(|index| index >= record.tabs.len())
+    {
+        return Err("Session has an invalid active document index.".into());
+    }
+    Ok(())
+}
+fn write_session(path: &Path, record: &SessionRecord) -> Result<(), String> {
+    valid_session_paths(record)?;
+    let contents = serde_json::to_vec(record).map_err(err)?;
+    if contents.len() > 2 * 1024 * 1024 {
+        return Err("Saved session is too large.".into());
+    }
+    let parent = path.parent().ok_or("Missing session directory.")?;
+    fs::create_dir_all(parent).map_err(err)?;
+    let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(err)?;
+    temp.write_all(&contents).map_err(err)?;
+    temp.as_file().sync_all().map_err(err)?;
+    temp.persist(path).map_err(err)?;
+    Ok(())
+}
+fn read_session(path: &Path) -> Result<Option<LoadedSession>, String> {
+    match fs::read(path) {
+        Ok(bytes) => {
+            if bytes.len() > 2 * 1024 * 1024 {
+                return Err("Saved session is too large.".into());
+            }
+            let mut record: SessionRecord = serde_json::from_slice(&bytes).map_err(err)?;
+            valid_session_workspace(&record)?;
+            let original_active = record.active;
+            let mut seen = std::collections::HashSet::new();
+            let mut valid_tabs = Vec::new();
+            let mut valid_active = None;
+            let mut skipped = 0;
+            for (index, tab) in record.tabs.into_iter().enumerate() {
+                if index >= 500 || !safe_session_tab(&tab) || !seen.insert(tab.clone()) {
+                    skipped += 1;
+                    continue;
+                }
+                if original_active == Some(index) {
+                    valid_active = Some(valid_tabs.len());
+                }
+                valid_tabs.push(tab);
+            }
+            record.tabs = valid_tabs;
+            record.active = valid_active;
+            Ok(Some(LoadedSession { record, skipped }))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(err(error)),
+    }
 }
 fn save_document(
     root: &Path,
@@ -245,6 +339,30 @@ async fn choose_workspace(
     Ok(Some(label))
 }
 #[tauri::command]
+fn load_session(store: State<'_, SessionStore>) -> Result<Option<LoadedSession>, String> {
+    let guard = store.0.lock().map_err(err)?;
+    read_session(guard.as_ref().ok_or("Session storage is unavailable.")?)
+}
+#[tauri::command]
+fn save_session(record: SessionRecord, store: State<'_, SessionStore>) -> Result<(), String> {
+    let guard = store.0.lock().map_err(err)?;
+    write_session(
+        guard.as_ref().ok_or("Session storage is unavailable.")?,
+        &record,
+    )
+}
+#[tauri::command]
+fn restore_workspace(path: String, state: State<'_, Workspace>) -> Result<String, String> {
+    let requested = PathBuf::from(path);
+    let root = requested.canonicalize().map_err(err)?;
+    if root != requested || !root.is_dir() {
+        return Err("The saved workspace is not a directory.".into());
+    }
+    let label = root.to_string_lossy().into_owned();
+    *state.0.lock().map_err(err)? = Some(root);
+    Ok(label)
+}
+#[tauri::command]
 fn list_directory(path: String, state: State<'_, Workspace>) -> Result<Vec<Entry>, String> {
     let guard = state.0.lock().map_err(err)?;
     let root = guard.as_ref().ok_or("Open a workspace first.")?;
@@ -355,6 +473,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Workspace::default())
         .setup(|app| {
+            let session_path = app.path().app_config_dir()?.join("session.json");
+            app.manage(SessionStore(Mutex::new(Some(session_path))));
             use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
             let quit = MenuItemBuilder::with_id("safe-quit", "Quit SpecSpace")
                 .accelerator("CmdOrCtrl+Q")
@@ -437,6 +557,9 @@ pub fn run() {
             image_export::save_diagram_png,
             image_export::copy_diagram_image,
             set_tab_menu_state,
+            load_session,
+            save_session,
+            restore_workspace,
             choose_workspace,
             create_markdown_document,
             list_directory,
@@ -459,6 +582,32 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn session_round_trip_and_rejects_unsafe_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config/session.json");
+        let record = SessionRecord {
+            workspace: "/tmp/specspace-test".into(),
+            tabs: vec!["a.md".into(), "nested/b.markdown".into()],
+            active: Some(1),
+        };
+        write_session(&path, &record).unwrap();
+        assert_eq!(
+            read_session(&path).unwrap(),
+            Some(LoadedSession { record, skipped: 0 })
+        );
+        let unsafe_record = SessionRecord {
+            workspace: "/tmp/specspace-test".into(),
+            tabs: vec!["../outside.md".into()],
+            active: Some(4),
+        };
+        assert!(valid_session_paths(&unsafe_record).is_err());
+        assert!(write_session(&path, &unsafe_record).is_err());
+        fs::write(&path, serde_json::to_vec(&unsafe_record).unwrap()).unwrap();
+        let loaded = read_session(&path).unwrap().unwrap();
+        assert_eq!(loaded.skipped, 1);
+        assert!(loaded.record.tabs.is_empty());
+    }
     #[test]
     fn round_trip_and_conflict() {
         let dir = tempfile::tempdir().unwrap();

@@ -9,6 +9,7 @@ use std::{
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 mod connections;
+mod image_export;
 
 const MAX_BYTES: u64 = 8 * 1024 * 1024;
 #[derive(Default)]
@@ -337,6 +338,17 @@ fn write_document(
         &expected_revision,
     )
 }
+struct TabMenu {
+    all: tauri::menu::MenuItem<tauri::Wry>,
+    others: tauri::menu::MenuItem<tauri::Wry>,
+}
+
+#[tauri::command]
+fn set_tab_menu_state(state: State<'_, TabMenu>, all: bool, others: bool) -> Result<(), String> {
+    state.all.set_enabled(all).map_err(err)?;
+    state.others.set_enabled(others).map_err(err)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -361,9 +373,22 @@ pub fn run() {
             let new_document = MenuItemBuilder::with_id("new-document", "New Markdown Document…")
                 .accelerator("CmdOrCtrl+N")
                 .build(app)?;
+            let close_all = MenuItemBuilder::with_id("close-all-tabs", "Close All Tabs")
+                .enabled(false)
+                .build(app)?;
+            let close_others = MenuItemBuilder::with_id("close-other-tabs", "Close Other Tabs")
+                .enabled(false)
+                .build(app)?;
+            app.manage(TabMenu {
+                all: close_all.clone(),
+                others: close_others.clone(),
+            });
             let file = SubmenuBuilder::new(app, "File")
                 .item(&new_document)
                 .item(&open_folder)
+                .separator()
+                .item(&close_all)
+                .item(&close_others)
                 .build()?;
             let edit = SubmenuBuilder::new(app, "Edit")
                 .undo()
@@ -390,6 +415,16 @@ pub fn run() {
                         let _ = window.emit("new-document-requested", ());
                     }
                 }
+                if event.id() == "close-all-tabs" || event.id() == "close-other-tabs" {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let scope = if event.id() == "close-all-tabs" {
+                            "all"
+                        } else {
+                            "others"
+                        };
+                        let _ = window.emit("close-tabs-requested", scope);
+                    }
+                }
                 if event.id() == "safe-quit" {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.close();
@@ -399,6 +434,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            image_export::save_diagram_png,
+            image_export::copy_diagram_image,
+            set_tab_menu_state,
             choose_workspace,
             create_markdown_document,
             list_directory,

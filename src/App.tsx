@@ -56,10 +56,16 @@ export function App() {
   const lock = useRef(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('Local-first workspace');
+  const [tabMenu, setTabMenu] = useState<{
+    x: number;
+    y: number;
+    path: string;
+  } | null>(null);
   const [prompt, setPrompt] = useState<{
     message: string;
     resolve: (choice: Choice) => void;
     save: boolean;
+    paths?: string[];
   } | null>(null);
   const selected = tabs.find((t) => t.path === active);
   const dirty = (tab: Tab) => tab.content !== tab.saved;
@@ -185,6 +191,85 @@ export function App() {
     await connections.refresh();
     setStatus(`Created ${result.path}`);
   }
+  async function closeTabs(scope: 'all' | 'others', keepPath = active) {
+    const current = tabsRef.current;
+    if (scope === 'others' && !current.some((tab) => tab.path === keepPath))
+      return;
+    const targets = current.filter(
+      (tab) => scope === 'all' || tab.path !== keepPath,
+    );
+    if (!targets.length) return;
+    const changed = targets.filter(dirty);
+    if (changed.length) {
+      const choice = await new Promise<Choice>((resolve) =>
+        setPrompt({
+          message: 'These documents have unsaved changes.',
+          paths: changed.map((tab) => tab.path),
+          save: true,
+          resolve,
+        }),
+      );
+      if (choice === 'cancel') return;
+      if (choice === 'save') {
+        for (const tab of changed) {
+          try {
+            await save(tab);
+          } catch (error) {
+            throw new Error(
+              `Could not save ${tab.path}: ${String(error)}. All tabs remain open; any earlier successful saves are kept.`,
+            );
+          }
+        }
+      }
+    }
+    const paths = new Set(targets.map((tab) => tab.path));
+    setTabs((current) => current.filter((tab) => !paths.has(tab.path)));
+    if (scope === 'all') setActive('');
+    else setActive(keepPath);
+    setStatus(scope === 'all' ? 'All tabs closed' : 'Other tabs closed');
+  }
+  const bulkCloseHandler = useRef(closeTabs);
+  bulkCloseHandler.current = closeTabs;
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+    getCurrentWindow()
+      .listen<'all' | 'others'>('close-tabs-requested', (event) => {
+        if (event.payload === 'all' || event.payload === 'others')
+          void perform(() => bulkCloseHandler.current(event.payload));
+      })
+      .then((unlisten) => {
+        if (disposed) unlisten();
+        else cleanup = unlisten;
+      })
+      .catch((error) => setError(String(error)));
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [perform]);
+  const menuUpdates = useRef(Promise.resolve());
+  useEffect(() => {
+    if (!isTauri()) return;
+    const all = !busy && tabs.length > 0;
+    const others =
+      all && tabs.length > 1 && tabs.some((tab) => tab.path === active);
+    menuUpdates.current = menuUpdates.current
+      .then(() => invoke<void>('set_tab_menu_state', { all, others }))
+      .catch((error) =>
+        setError(`Could not update tab menu: ${String(error)}`),
+      );
+  }, [busy, tabs.length, active]);
+  useEffect(() => {
+    const dismiss = () => setTabMenu(null);
+    window.addEventListener('click', dismiss);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('click', dismiss);
+      window.removeEventListener('resize', dismiss);
+    };
+  }, []);
   async function close(path: string) {
     const tab = tabsRef.current.find((t) => t.path === path);
     if (!tab || !(await protect([tab]))) return;
@@ -387,7 +472,7 @@ export function App() {
   }
   return (
     <div className="app">
-      <header className="titlebar">
+      <header className="titlebar" inert={busy}>
         <div className="brand">
           <span className="brand-icon">
             <BookOpen size={18} />
@@ -419,7 +504,7 @@ export function App() {
           {showConnections ? 'Back to editor' : 'Connections'}
         </button>
       </header>
-      <div className="workspace">
+      <div className="workspace" inert={busy}>
         {sidebar && (
           <aside>
             <div className="sidebar-heading">
@@ -527,6 +612,30 @@ export function App() {
                   <button
                     role="tab"
                     aria-selected={active === tab.path}
+                    onMouseDown={(event) => {
+                      if (event.button !== 2) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setTabMenu({
+                        x: event.clientX,
+                        y: event.clientY,
+                        path: tab.path,
+                      });
+                    }}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setTabMenu({
+                        x: event.clientX,
+                        y: event.clientY,
+                        path: tab.path,
+                      });
+                    }}
+                    onAuxClick={(event) => {
+                      if (event.button !== 2) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
                     onClick={() => {
                       setActive(tab.path);
                       setShowConnections(false);
@@ -620,6 +729,7 @@ export function App() {
                     >
                       <Editor
                         content={tab.content}
+                        canEdit={() => !lock.current}
                         onChange={(content) =>
                           setTabs((current) =>
                             current.map((t) =>
@@ -637,6 +747,7 @@ export function App() {
                   </div>
                   <Preview
                     content={selected.content}
+                    filename={selected.path.split('/').at(-1)}
                     onLink={(href) => {
                       const path = relativeLink(active, href);
                       if (path) void perform(() => open(path));
@@ -688,6 +799,35 @@ export function App() {
           </div>
         </main>
       </div>
+      {tabMenu && (
+        <div
+          className="tab-context-menu"
+          role="menu"
+          style={{ left: tabMenu.x, top: tabMenu.y }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            role="menuitem"
+            disabled={busy || tabs.length === 0}
+            onClick={() => {
+              setTabMenu(null);
+              void perform(() => closeTabs('all'));
+            }}
+          >
+            Close All Tabs
+          </button>
+          <button
+            role="menuitem"
+            disabled={busy || tabs.length < 2}
+            onClick={() => {
+              setTabMenu(null);
+              void perform(() => closeTabs('others', tabMenu.path));
+            }}
+          >
+            Close Other Tabs
+          </button>
+        </div>
+      )}
       <footer className="statusbar">
         <span className="status-left">
           <span className="local-dot" />
@@ -735,6 +875,16 @@ export function App() {
           >
             <h2 id="dialog-title">Keep your changes?</h2>
             <p>{prompt.message}</p>
+            {prompt.paths && (
+              <ul
+                className="pending-paths"
+                aria-label="Documents with unsaved changes"
+              >
+                {prompt.paths.map((path) => (
+                  <li key={path}>{path}</li>
+                ))}
+              </ul>
+            )}
             <div className="modal-actions">
               <button
                 autoFocus
@@ -751,7 +901,7 @@ export function App() {
                   setPrompt(null);
                 }}
               >
-                Discard changes
+                {prompt.paths ? 'Discard Changes' : 'Discard changes'}
               </button>
               {prompt.save && (
                 <button
@@ -761,7 +911,7 @@ export function App() {
                     setPrompt(null);
                   }}
                 >
-                  Save changes
+                  {prompt.paths ? 'Save All' : 'Save changes'}
                 </button>
               )}
             </div>

@@ -1,6 +1,6 @@
 # Current architecture
 
-Updated: 2026-10-17, including Connected Specifications (increment 001). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-18, including bulk tab closing (increment 004). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
@@ -37,6 +37,10 @@ Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies c
 ## Menus and lifecycle
 
 File → Open Folder… emits `open-folder-requested` to the main window. The React listener uses the same guarded open flow as the welcome screen. ⌘O is registered natively; the web handler is only a browser fallback. Closing the window or quitting uses the unsaved-document guard. Force quit cannot protect edits in memory.
+
+Bulk tab actions emit `close-tabs-requested` with an all/others scope. Rust stores menu handles in `TabMenu`; `set_tab_menu_state` only updates their enabled state. React queues availability updates in order and revalidates targets inside its action lock. It removes tabs only after the targeted dirty documents have been resolved; partial-save failures retain every editor and the successful saves already completed. The bulk prompt lists affected relative paths in a bounded scrollable list.
+
+While an action is pending, background UI is inert. CodeMirror checks the synchronous action lock at transaction dispatch, including undo transactions that bypass transaction filters. This preserves mounted editor state/history and prevents edits during pending-close resolution without introducing new filesystem access.
 
 ## Preview and security
 

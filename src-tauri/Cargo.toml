@@ -18,3 +18,5 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 tempfile = "3"
+png = "0.17"
+arboard = "3"

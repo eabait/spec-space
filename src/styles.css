@@ -245,6 +245,7 @@ main {
 .tab > button:first-child {
   font-size: 12px;
   color: #6a7687;
+  user-select: none;
 }
 .tab.active > button:first-child {
   color: #344e70;
@@ -253,6 +254,47 @@ main {
   padding: 14px 17px;
   color: #929caa;
   font-size: 11px;
+}
+.tab-context-menu {
+  position: fixed;
+  z-index: 120;
+  min-width: 170px;
+  padding: 5px;
+  background: white;
+  border: 1px solid #dfe4eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px #1d30401f;
+}
+.tab-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 11px;
+  text-align: left;
+  border-radius: 5px;
+  color: #344e70;
+  font-size: 12px;
+}
+.tab-context-menu button:hover:not(:disabled) {
+  background: #eef3fb;
+}
+.tab-context-menu button:disabled {
+  color: #aeb7c2;
+}
+.diagram {
+  position: relative;
+}
+.diagram-toast {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  padding: 6px 10px;
+  color: white;
+  background: #26384de8;
+  border-radius: 6px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px #17233033;
+  pointer-events: none;
 }
 .document-toolbar {
   height: 60px;
@@ -889,4 +931,16 @@ summary {
   .graph-tools > span {
     flex-basis: 100%;
   }
+}
+
+.pending-paths {
+  max-height: 30vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding-left: 22px;
+  line-height: 1.6;
+}
+.modal {
+  max-height: 90vh;
+  overflow: auto;
 }

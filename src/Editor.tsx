@@ -7,17 +7,29 @@ import { applyEditorChanges, editorText, type Change } from './text';
 export function Editor({
   content,
   onChange,
+  canEdit,
 }: {
   content: string;
+  canEdit?: () => boolean;
   onChange: (content: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const callback = useRef(onChange);
   callback.current = onChange;
+  const editing = useRef(canEdit);
+  editing.current = canEdit;
   const raw = useRef(content);
   useEffect(() => {
     const view = new EditorView({
       parent: host.current!,
+      dispatchTransactions: (transactions, view) => {
+        if (
+          editing.current?.() === false &&
+          transactions.some((transaction) => transaction.docChanged)
+        )
+          return;
+        view.update(transactions);
+      },
       state: EditorState.create({
         doc: editorText(raw.current),
         extensions: [

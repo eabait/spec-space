@@ -21,6 +21,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => true,
   invoke: async (command: string, args: Record<string, string>) => {
     backend.calls.push(command);
+    if (command === 'set_tab_menu_state') return;
     if (command === 'choose_workspace') return backend.nextRoot;
     if (command === 'list_directory')
       return Object.keys(backend.files).map((path) => ({

@@ -1,6 +1,6 @@
 # SpecSpace — current product
 
-Status: current product, updated on 2026-10-17 with [increment 001](specs/001-connected-specifications.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
+Status: current product, updated on 2026-10-18 with [increment 004](specs/004-bulk-tab-closing.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
 ## Purpose and document model
 
@@ -8,9 +8,10 @@ A local desktop editor for technical specifications on macOS. A workspace is a f
 
 ## Current functionality
 
-The primary open action is **File → Open Folder…** (⌘O), in the native menu. The upper-right button has been removed. Opening from the welcome screen and tab bar remains available.
+The primary open action is **File → Open Folder…** (⌘O), in the native menu. Opening from the welcome screen and the **Open workspace** control beside **Connections** in the top bar remains available.
 
 - Native folder picker; lazily expanded directory explorer with refresh and filename filtering within expanded folders.
+- **File → Close All Tabs / Close Other Tabs**, also available by right-clicking any tab, close all documents or retain the clicked tab. One prompt lists only affected dirty paths and offers Save All, Discard Changes, or Cancel. A failed save keeps every tab open and retains any earlier successful saves. The active tab and its undo history survive Close Other Tabs; closing all keeps the workspace open.
 - Multiple document tabs, dirty indicators, independent editor undo histories, and source / split / preview layouts.
 - CodeMirror Markdown editing with line numbers, syntax highlighting, search, undo/redo, and line wrapping.
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced Mermaid rendering with inline errors.
@@ -43,7 +44,7 @@ Scans are bounded to 500 document/issue entries, 32 MiB total content, 10,000 di
 
 ## Current limits
 
-Existing files only: create, rename, and delete files using Finder or your existing tools, then refresh. There is no auto-save, crash recovery, session restore, file watcher, Git UI, cloud sync, or remote collaboration. A clean open tab does not automatically refresh after external edits; use **Reload from disk**. Force quit and power loss cannot show a pending-change prompt. Images and non-Markdown attachments are not rendered yet. Scroll positions in source and preview are independent. Frontmatter stays editable in source and is omitted from the rendered preview; there is no separate metadata UI.
+Create Markdown files within the workspace using the native File menu or **+ New** in the explorer. Rename and delete files using Finder or your existing tools, then refresh. There is no auto-save, crash recovery, session restore, file watcher, Git UI, cloud sync, or remote collaboration. A clean open tab does not automatically refresh after external edits; use **Reload from disk**. Force quit and power loss cannot show a pending-change prompt. Images and non-Markdown attachments are not rendered yet. Scroll positions in source and preview are independent. Frontmatter stays editable in source and is omitted from the rendered preview; there is no separate metadata UI.
 
 ## Baseline acceptance criteria
 

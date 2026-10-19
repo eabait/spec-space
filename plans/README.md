@@ -1,7 +1,11 @@
 # Implementation plans
 
+- [005 — Mermaid image export](005-mermaid-image-export.md): complete; accepted and validated locally on 2026-10-19.
+
 - [001 — Connected Specifications](001-connected-specifications.md): implementation and validation evidence.
 - [003 — Create Markdown documents](003-create-markdown-documents.md): complete local implementation and validation evidence.
+
+- [004 — Bulk tab closing](004-bulk-tab-closing.md): complete; native and automated validation evidence.
 
 Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 

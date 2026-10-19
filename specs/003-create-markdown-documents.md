@@ -63,4 +63,4 @@ Accepted by the user with “aceptada” on 2026-10-18. Implementation decisions
 
 ## Closure
 
-Implemented locally on 2026-10-18. The native File menu and explorer action open a non-blocking save dialog, Rust validates containment and creates with exclusive semantics, and the new document opens in a clean active tab. Existing Markdown conflicts can be opened without duplicate tabs. Build, Rust tests, formatting, and diff checks passed. Packaged-app dialog behavior and the minimum-window visual check remain outstanding before release.
+Implemented locally on 2026-10-18. The native File menu and explorer action open a non-blocking save dialog, Rust validates containment and creates with exclusive semantics, and the new document opens in a clean active tab. Existing Markdown conflicts can be opened without duplicate tabs. Build, Rust tests, formatting, and diff checks passed. The user confirmed that the document-creation dialog in the packaged app is OK on 2026-10-19; the minimum-window visual check remains outstanding.

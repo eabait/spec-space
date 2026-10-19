@@ -39,8 +39,8 @@ Expected: `src-tauri/src/lib.rs`; `src/App.tsx`; `src/styles.css`; focused Rust 
 
 ## Validation
 
-Completed locally: `npm run build` passed; `cargo test --manifest-path src-tauri/Cargo.toml` passed with 7 tests; formatting and `git diff --check` passed; `npm run tauri build` produced the macOS bundle. The first implementation used the blocking dialog API on the UI command path and could make the application appear unresponsive. It was replaced with the plugin's callback based non-blocking `save_file` API; the result is emitted back to React after the dialog closes. Packaged macOS dialog behavior and minimum-window visual inspection remain outstanding.
+Completed locally: `npm run build` passed; `cargo test --manifest-path src-tauri/Cargo.toml` passed with 7 tests; formatting and `git diff --check` passed; `npm run tauri build` produced the macOS bundle. The first implementation used the blocking dialog API on the UI command path and could make the application appear unresponsive. It was replaced with the plugin's callback based non-blocking `save_file` API; the result is emitted back to React after the dialog closes. The user confirmed on 2026-10-19 that the document-creation dialog in the packaged macOS app is OK. Minimum-window visual inspection remains outstanding.
 
 ## Closure
 
-Implementation and local validation are complete. The native packaged-app inspection remains an outstanding limitation; no commit or publication was performed.
+Implementation and local validation are complete. The user confirmed the packaged-app dialog is OK; minimum-window visual inspection remains outstanding. No commit or publication was performed.

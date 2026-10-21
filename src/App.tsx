@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import type { RefObject } from 'react';
+import { DiagramFocusView } from './DiagramFocusView';
 import { Editor, type EditorHandle } from './Editor';
 import { Preview, type PreviewHandle } from './Preview';
 import { extractOutline, type OutlineSection } from './outline';
@@ -126,6 +127,11 @@ export function App() {
   const connections = useConnections();
   const [showConnections, setShowConnections] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
+  const [focusedDiagram, setFocusedDiagram] = useState<{
+    svg: SVGSVGElement;
+    title: string;
+    nodeIds?: string[];
+  } | null>(null);
   const [tree, setTree] = useState<Record<string, Entry[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tabs, setTabs] = useState<Tab[]>([]);
@@ -168,6 +174,16 @@ export function App() {
     () => (selected ? extractOutline(selected.content) : []),
     [selected?.content],
   );
+  useEffect(() => {
+    setFocusedDiagram(null);
+  }, [
+    active,
+    selected?.content,
+    selected?.generation,
+    busy,
+    showConnections,
+    mode,
+  ]);
   const visibleMode = compactLayout && mode === 'split' ? 'preview' : mode;
   function editorRefFor(path: string) {
     let callback = editorRefCallbacks.current.get(path);
@@ -1014,6 +1030,9 @@ export function App() {
                     ref={previewRef}
                     content={selected.content}
                     filename={selected.path.split('/').at(-1)}
+                    onExplore={(svg, title, nodeIds) =>
+                      setFocusedDiagram({ svg, title, nodeIds })
+                    }
                     onLink={(href) => {
                       const path = relativeLink(active, href);
                       if (path) void perform(() => open(path));
@@ -1061,6 +1080,14 @@ export function App() {
                   <Preview content={sample} onLink={() => {}} />
                 </div>
               </div>
+            )}
+            {focusedDiagram && (
+              <DiagramFocusView
+                svg={focusedDiagram.svg}
+                title={focusedDiagram.title}
+                nodeIds={focusedDiagram.nodeIds}
+                onClose={() => setFocusedDiagram(null)}
+              />
             )}
             {selected && showOutline && (
               <section

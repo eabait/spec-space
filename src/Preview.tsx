@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { ReactNode } from 'react';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Root, RootContent } from 'mdast';
@@ -19,18 +20,22 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { diagramPng } from './diagram-image';
 import { renderPeleDiagram } from './pele-renderer';
 import { outlineTargetId } from './outline';
+import { Copy, Download, Maximize2 } from 'lucide-react';
 let renderQueue = Promise.resolve();
 function Diagram({
   source,
   filename,
   ordinal,
+  onExplore,
 }: {
   source: string;
   filename: string;
   ordinal: number;
+  onExplore: (svg: SVGSVGElement, title: string, nodeIds?: string[]) => void;
 }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, '');
   const host = useRef<HTMLDivElement>(null);
+  const nodeIds = useRef<string[] | undefined>(undefined);
   const [error, setError] = useState('');
   const [rendered, setRendered] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -85,12 +90,13 @@ function Diagram({
       renderQueue = renderQueue.then(async () => {
         if (cancelled) return;
         try {
-          const { svg } = await renderPeleDiagram(source, `diagram${id}`);
+          const result = await renderPeleDiagram(source, `diagram${id}`);
           if (!cancelled && host.current) {
-            host.current.innerHTML = DOMPurify.sanitize(svg, {
+            host.current.innerHTML = DOMPurify.sanitize(result.svg, {
               USE_PROFILES: { svg: true, svgFilters: true },
               FORBID_TAGS: ['a', 'image', 'foreignObject'],
             });
+            nodeIds.current = result.nodeIds;
             setError('');
             setRendered(source);
           }
@@ -112,18 +118,36 @@ function Diagram({
       <div className="diagram-label">MERMAID</div>
       <div className="diagram-actions">
         <button
+          disabled={rendered !== source}
+          aria-label={`Explore diagram ${ordinal}`}
+          title="Explore diagram"
+          onClick={() => {
+            const svg = host.current?.querySelector('svg');
+            if (svg)
+              onExplore(
+                svg,
+                `${filename} · Diagram ${ordinal}`,
+                nodeIds.current,
+              );
+          }}
+        >
+          <Maximize2 size={15} />
+        </button>
+        <button
           disabled={exporting || rendered !== source}
           aria-label={`Save diagram ${ordinal} as PNG`}
+          title="Save diagram as PNG"
           onClick={() => void exportImage(false)}
         >
-          Save PNG…
+          <Download size={15} />
         </button>
         <button
           disabled={exporting || rendered !== source}
           aria-label={`Copy diagram ${ordinal} as image`}
+          title="Copy diagram as image"
           onClick={() => void exportImage(true)}
         >
-          Copy Image
+          <Copy size={15} />
         </button>
       </div>
       {feedback && (
@@ -201,14 +225,31 @@ const headingComponents: Components = {
   ),
 };
 
+function MarkdownTable({ children }: { children?: ReactNode }) {
+  return (
+    <div
+      className="table-scroll"
+      role="region"
+      aria-label="Scrollable table"
+      tabIndex={0}
+    >
+      <table>{children}</table>
+    </div>
+  );
+}
+
 export const Preview = forwardRef<
   PreviewHandle,
   {
     content: string;
     onLink: (href: string) => void;
     filename?: string;
+    onExplore?: (svg: SVGSVGElement, title: string, nodeIds?: string[]) => void;
   }
->(function Preview({ content, onLink, filename = 'document' }, ref) {
+>(function Preview(
+  { content, onLink, filename = 'document', onExplore = () => {} },
+  ref,
+) {
   const article = useRef<HTMLElement>(null);
   useImperativeHandle(
     ref,
@@ -246,6 +287,17 @@ export const Preview = forwardRef<
         skipHtml
         components={{
           ...headingComponents,
+          table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
+          th: ({ children, node: _node, style, ...props }) => (
+            <th {...props} style={{ ...style, textAlign: 'left' }}>
+              {children}
+            </th>
+          ),
+          td: ({ children, node: _node, style, ...props }) => (
+            <td {...props} style={{ ...style, textAlign: 'left' }}>
+              {children}
+            </td>
+          ),
           pre: ({ children }) => <div className="code-block">{children}</div>,
           code: ({ className, children, node, ...props }) =>
             /language-mermaid/.test(className ?? '') ? (
@@ -253,6 +305,7 @@ export const Preview = forwardRef<
                 source={String(children).replace(/\n$/, '')}
                 filename={filename}
                 ordinal={ordinals.get(node?.position?.start.offset ?? 0) ?? 1}
+                onExplore={onExplore}
               />
             ) : (
               <code className={className} {...props}>

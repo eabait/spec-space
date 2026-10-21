@@ -1,6 +1,6 @@
 # SpecSpace — current product
 
-Status: current product, updated on 2026-10-19 with [increment 011](specs/011-document-section-outline.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
+Status: current product, updated on 2026-10-19 with [increment 012](specs/012-readable-markdown-tables.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
 ## Purpose and document model
 
@@ -16,6 +16,7 @@ The primary open action is **File → Open Folder…** (⌘O), in the native men
 - A warm editorial and blueprint-inspired visual system across workspace chrome, source editing, Markdown reading, diagrams, and Connections. Wide windows use a broad reading canvas beside Source; at compact widths the existing controls focus on Source or Preview while keeping the editor mounted and preserving its state. The macOS icon uses connected architectural modules rather than a book motif.
 - After a normal quit, restore the last workspace and open Markdown tabs from current disk content, preserving tab order and the active document. Session metadata stores paths and navigation state locally; unsaved text, editor history, and view state are not restored. Unavailable documents are skipped with a status notice.
 - **Outline** opens a transient nested heading list for the active document. It follows the active tab and current unsaved source, distinguishes repeated titles, and navigates to the selected heading in Source, Preview, or both Split panes. The panel is keyboard-operable, scrolls internally, and does not change document text or ordinary pane scroll coupling.
+- GFM tables in Preview keep readable minimum cell widths and scroll horizontally within their own labelled region when they exceed the reading width. Header and body text align left for consistent scanning; source content and GFM alignment markers remain unchanged.
 - CodeMirror Markdown editing with line numbers, syntax highlighting, search, undo/redo, and line wrapping.
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced local Mermaid-syntax rendering through Pele, with inline errors.
 - Relative Markdown links navigate within the workspace.

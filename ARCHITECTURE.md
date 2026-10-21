@@ -1,6 +1,6 @@
 # Current architecture
 
-Updated: 2026-10-19, including session continuity, the visual experience, and document section navigation (increments 009–011). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-19, including session continuity, the visual experience, document section navigation, and readable tables (increments 009–012). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
@@ -35,6 +35,8 @@ Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies c
 `src/ConnectionsView.tsx` provides reference/backlink lists, missing-target reporting, and empty/error states. `src/ConnectionGraph.tsx` renders a deterministic SVG graph, fits it with ResizeObserver, and delegates navigation to App. Editors remain mounted inside a hidden wrapper during graph use. The graph and index are derived, in-memory state, with no semantic dependency model or persistent database.
 
 `src/Preview.tsx` gives rendered headings internal source-offset identifiers for outline navigation; these identifiers do not alter authored fragment links. `src/App.tsx` derives the outline from the active buffer, coordinates source and preview jumps, and owns the transient accessible panel. The outline parser and rendered headings both normalize an initial UTF-8 BOM and omitted frontmatter consistently. Source navigation scrolls the existing CodeMirror instance without replacing it. In Split mode, only an explicit outline selection navigates both panes; subsequent scrolling remains independent.
+
+GFM tables render inside labelled, keyboard-focusable local overflow regions. CSS applies content-based table sizing and minimum cell widths so narrow columns remain readable while wide tables do not expand the document pane. Preview left-aligns all header and body cell text for scanability; authored GFM alignment markers remain unchanged in the Markdown source.
 
 `src/styles.css` owns the shared visual tokens and responsive presentation. `src/App.tsx` derives a compact effective pane mode from viewport width while preserving the selected mode and mounted editor state. Tauri's configured platform icons are generated from `src-tauri/icons/source.svg`.
 

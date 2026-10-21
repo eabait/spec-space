@@ -25,6 +25,8 @@ After a normal quit, SpecSpace restores the last workspace and open Markdown tab
 
 Use **Outline** in the document toolbar to navigate headings in the active document. The nested list follows unsaved edits and distinguishes repeated heading titles; selecting an entry scrolls the current Source, Preview, or both Split panes.
 
+Wide tables in Preview retain readable columns and scroll horizontally within their own region; compact tables keep their natural width.
+
 Connections update after saves, reloads, and workspace opening. Use **Refresh connections** after external file changes; **Refresh workspace** also updates the explorer. Neither refresh overwrites pending editor changes. Scan limits, skipped files, and stale results are shown in the view. See [SPEC](SPEC.md) for exact limits and exclusions.
 
 ```sh

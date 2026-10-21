@@ -1,6 +1,6 @@
 # SpecSpace — current product
 
-Status: current product, updated on 2026-10-19 with [increment 012](specs/012-readable-markdown-tables.md). The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
+Status: current product, updated on 2026-10-21 with [increment 015](specs/015-inspect-direct-node-connections.md), including direct node inspection for supported flowcharts and C4 diagrams; validation limits are in plan 015. The original MVP predates SDD; its documentation does not imply retrospective acceptance. This is the source of truth for current behavior. Proposals belong in `specs/` until implemented and validated.
 
 ## Purpose and document model
 
@@ -19,6 +19,7 @@ The primary open action is **File → Open Folder…** (⌘O), in the native men
 - GFM tables in Preview keep readable minimum cell widths and scroll horizontally within their own labelled region when they exceed the reading width. Header and body text align left for consistent scanning; source content and GFM alignment markers remain unchanged.
 - CodeMirror Markdown editing with line numbers, syntax highlighting, search, undo/redo, and line wrapping.
 - GitHub-flavored Markdown preview with tables, task lists, fenced code, and debounced local Mermaid-syntax rendering through Pele, with inline errors.
+- Rendered diagrams can expand into a focused view with icon controls for zoom, Fit, Reset, image copying/saving, and return. Supported flowcharts offer **Find node**: case-insensitive label search, distinct results for repeated labels, and keyboard/pointer activation to center and highlight a node. **Node details** shows its direct incoming, outgoing, two-way, undirected, other, and self-connections; entries navigate to the connected node. Unresolved subgraph/container endpoints are counted separately. Search and inspection are local to the displayed diagram and do not modify source or exported images.
 - Relative Markdown links navigate within the workspace.
 - Explicit save, reload from disk, and save/discard/cancel protection on tab close, workspace switch, window close, and normal application quit.
 - Create a new empty Markdown document from File → New Markdown Document… (⌘N) or the explorer plus action. A native save dialog chooses an existing workspace directory; omitted extensions become `.md`, and only `.md`/`.markdown` are accepted. Creation never overwrites an existing file. Existing Markdown conflicts can be opened and reuse an existing tab.

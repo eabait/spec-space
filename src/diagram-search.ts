@@ -3,6 +3,42 @@ export interface DiagramNode {
   id: string;
   label: string;
 }
+export interface DiagramEdge {
+  id: string;
+  start: string;
+  end: string;
+  type: string;
+  label: string;
+  kind: 'arrow' | 'two-way' | 'undirected' | 'other' | 'self';
+}
+
+export function inspectConnections(edges: DiagramEdge[], nodeId: string) {
+  return edges
+    .filter((edge) => edge.start === nodeId || edge.end === nodeId)
+    .map((edge) => ({
+      ...edge,
+      kind:
+        edge.start === nodeId && edge.end === nodeId
+          ? 'self'
+          : edge.kind === 'arrow'
+            ? edge.end === nodeId
+              ? 'incoming'
+              : 'outgoing'
+            : edge.kind,
+    }));
+}
+
+export function classifyEdge(
+  type: string,
+  start: string,
+  end: string,
+): DiagramEdge['kind'] {
+  if (start === end) return 'self';
+  if (type === 'double_arrow_point') return 'two-way';
+  if (type === 'arrow_point') return 'arrow';
+  if (type === 'arrow_open') return 'undirected';
+  return 'other';
+}
 
 export function normalizeSearch(text: string): string {
   return text.trim().replace(/\s+/g, ' ').toLowerCase();

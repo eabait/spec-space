@@ -1759,3 +1759,47 @@ dialog.diagram-focus:not([open]) {
     gap: 2px;
   }
 }
+.diagram-focus-art .inspection-selected rect,
+.diagram-focus-art .inspection-selected polygon,
+.diagram-focus-art .inspection-selected circle,
+.diagram-focus-art .inspection-selected ellipse,
+.diagram-focus-art .inspection-selected path,
+.diagram-focus-art .inspection-selected polygon {
+  stroke: #2463df !important;
+  stroke-width: 3 !important;
+  filter: drop-shadow(0 0 3px #fff);
+}
+.diagram-focus-art .inspection-neighbor rect,
+.diagram-focus-art .inspection-neighbor polygon,
+.diagram-focus-art .inspection-neighbor circle,
+.diagram-focus-art .inspection-neighbor ellipse,
+.diagram-focus-art .inspection-neighbor path {
+  stroke: #7195cf !important;
+  stroke-width: 2.5 !important;
+}
+.diagram-focus-art .inspection-edge {
+  filter: drop-shadow(0 0 2px #2463df);
+  stroke: #2463df !important;
+}
+.diagram-connection-group {
+  overflow: auto;
+  min-height: 0;
+}
+.diagram-connection-group h3 {
+  font-size: 11px;
+  color: #65738a;
+  margin: 12px 2px 6px;
+}
+.diagram-connection-group button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  padding: 9px;
+  overflow-wrap: anywhere;
+}
+.diagram-connection-group small {
+  color: #65738a;
+  margin-top: 3px;
+}

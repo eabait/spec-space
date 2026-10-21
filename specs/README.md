@@ -18,8 +18,10 @@
 - [010 — Visual experience for reading and navigating specifications](010-visual-experience-revamp.md): implemented locally and validated by the user on 2026-10-19; see plan 010.
 - [011 — Navigate long documents with a section outline](011-document-section-outline.md): implemented and validated locally on 2026-10-19; see plan 011.
 - [012 — Keep Markdown tables readable in the preview](012-readable-markdown-tables.md): implementation complete; horizontal-scroll confirmation remains; see plan 012.
-- [013 — Explore a diagram in a focused view](013-focused-diagram-view.md): accepted and in progress on 2026-10-21. Read-only zoom, pan, fit, and return to the document.
-- [014 — Find and focus flowchart nodes](014-find-and-focus-flowchart-nodes.md): proposal prepared on 2026-10-21; detailed acceptance pending. Search labels and focus results in the expanded diagram, subject to a Pele mapping feasibility gate.
+- [013 — Explore a diagram in a focused view](013-focused-diagram-view.md): implemented locally and validated by the user on 2026-10-21. Read-only zoom, pan, fit, and return to the document.
+- [014 — Find and focus flowchart nodes](014-find-and-focus-flowchart-nodes.md): implemented locally and approved by the user on 2026-10-21; see plan 014 for observed native checks and remaining validation limits.
+
+- [015 — Inspect a node’s direct connections](015-inspect-direct-node-connections.md): implemented locally for flowcharts and C4; the C4 correction and automated evidence are in plan 015.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 

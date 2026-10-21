@@ -1,6 +1,6 @@
 # 014 — Find and focus flowchart nodes
 
-Status: Accepted. Created and accepted: 2026-10-21.
+Status: Implemented locally and approved by the user on 2026-10-21. Remaining validation limits are recorded in plan 014.
 
 ## Problem and intended outcome
 
@@ -62,6 +62,6 @@ Search outside the active diagram; search in other Mermaid types; direct canvas 
 
 ## Acceptance and plan
 
-On 2026-10-21, the user replied “bien” to the recommendation to prepare SPEC 014 for finding and focusing flowchart nodes, with a technical feasibility gate. This authorizes preparation of this proposal. The detailed interactions above remain pending explicit acceptance.
+On 2026-10-21, the user replied “bien” to the recommendation to prepare SPEC 014 for finding and focusing flowchart nodes, with a technical feasibility gate. This authorized preparation of the proposal; subsequent explicit acceptance is recorded below.
 
 The user explicitly accepted this contract with “aceptado” on 2026-10-21. See [plan 014](../plans/014-find-and-focus-flowchart-nodes.md) for the feasibility gate, implementation sequence, and evidence.

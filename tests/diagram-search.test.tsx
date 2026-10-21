@@ -33,7 +33,11 @@ async function fixture(
     USE_PROFILES: { svg: true, svgFilters: true },
     FORBID_TAGS: ['a', 'image', 'foreignObject'],
   });
-  return { svg: host.querySelector('svg')!, nodeIds: result.nodeIds! };
+  return {
+    svg: host.querySelector('svg')!,
+    nodeIds: result.nodeIds!,
+    edges: result.edges!,
+  };
 }
 it('maps sanitized duplicate, multiline and implicit labels by source identity', async () => {
   const { svg, nodeIds } = await fixture();
@@ -83,6 +87,157 @@ it('centers a target without zooming in and fits an oversized node', () => {
   expect((1200 + 16) * large.scale).toBeLessThanOrEqual(536);
   expect(large.x + (-100 + 600) * large.scale).toBe(0);
 });
+it('classifies edge direction only from explicit endpoint styles', async () => {
+  const { classifyEdge, inspectConnections } =
+    await import('../src/diagram-search');
+  const edge = (id: string, type: string, start: string, end: string) => ({
+    id,
+    type,
+    start,
+    end,
+    label: '',
+    kind: classifyEdge(type, start, end),
+  });
+  const edges = [
+    edge('in', 'arrow_point', 'A', 'B'),
+    edge('out', 'arrow_point', 'B', 'C'),
+    edge('both', 'double_arrow_point', 'C', 'B'),
+    edge('line', 'arrow_open', 'D', 'B'),
+    edge('unknown', 'dotted', 'B', 'E'),
+    edge('loop', 'arrow_point', 'B', 'B'),
+  ];
+  expect(
+    inspectConnections(edges, 'B').map(({ id, kind }) => [id, kind]),
+  ).toEqual([
+    ['in', 'incoming'],
+    ['out', 'outgoing'],
+    ['both', 'two-way'],
+    ['line', 'undirected'],
+    ['unknown', 'other'],
+    ['loop', 'self'],
+  ]);
+});
+it('selects clicked nodes and preserves the selection through the captured click', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute('open');
+  };
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: Element) {
+      const box = this.classList.contains('pele-node')
+        ? { x: 100, y: 80, width: 70, height: 40 }
+        : { x: 0, y: 0, width: 700, height: 450 };
+      return {
+        ...box,
+        left: box.x,
+        top: box.y,
+        right: box.x + box.width,
+        bottom: box.y + box.height,
+        toJSON: () => box,
+      } as DOMRect;
+    },
+  );
+  const props = await fixture();
+  render(<DiagramFocusView {...props} title="Diagram" onClose={() => {}} />);
+  const stage = screen.getByLabelText('Diagram canvas');
+  const group = stage.querySelector<SVGGElement>('g.pele-node[data-id="A"]')!;
+  const art = stage.querySelector<HTMLElement>('.diagram-focus-art')!;
+  const fittedTransform = art.style.transform;
+  fireEvent.pointerDown(group, {
+    button: 0,
+    pointerId: 1,
+    clientX: 120,
+    clientY: 100,
+  });
+  fireEvent.pointerUp(stage, {
+    button: 0,
+    pointerId: 1,
+    clientX: 120,
+    clientY: 100,
+  });
+  fireEvent.click(stage);
+  expect(screen.getAllByText('Billing').length).toBeGreaterThan(0);
+  expect(screen.getByText('A')).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Node details' })).toBeTruthy();
+  expect(art.style.transform).toBe(fittedTransform);
+});
+it('inspects connected C4 containers and follows their relationships', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute('open');
+  };
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: Element) {
+      const box = this.classList.contains('pele-node')
+        ? { x: 100, y: 80, width: 70, height: 40 }
+        : { x: 0, y: 0, width: 700, height: 450 };
+      return {
+        ...box,
+        left: box.x,
+        top: box.y,
+        right: box.x + box.width,
+        bottom: box.y + box.height,
+        toJSON: () => box,
+      } as DOMRect;
+    },
+  );
+  const props = await fixture(
+    'C4Container\nPerson(user, "User", "A person")\nContainer(api, "API", "Node", "Service")\nContainerDb(db, "Database", "Postgres", "Storage")\nRel(user, api, "calls")\nBiRel(api, db, "reads and writes")',
+  );
+  render(<DiagramFocusView {...props} title="C4 diagram" onClose={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Node details' }));
+
+  const stage = screen.getByLabelText('Diagram canvas');
+  const node = stage.querySelector<SVGGElement>('g.pele-node[data-id="api"]')!;
+  fireEvent.pointerDown(node, {
+    button: 0,
+    pointerId: 2,
+    clientX: 120,
+    clientY: 100,
+  });
+  fireEvent.pointerUp(stage, {
+    button: 0,
+    pointerId: 2,
+    clientX: 120,
+    clientY: 100,
+  });
+  fireEvent.click(stage);
+
+  expect(screen.getByText('Incoming · 1')).toBeTruthy();
+  expect(screen.getByText('Two-way · 1')).toBeTruthy();
+  expect(screen.getByRole('button', { name: /User.*calls/ })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: /Database.*reads and writes/ }),
+  ).toBeTruthy();
+  expect(document.querySelectorAll('.inspection-edge').length).toBeGreaterThan(
+    0,
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: /Database.*reads and writes/ }),
+  );
+  expect(screen.getAllByText('Two-way · 1').length).toBeGreaterThan(0);
+  expect(
+    document.querySelector('.inspection-selected')?.getAttribute('data-id'),
+  ).toBe('db');
+});
 it('search keyboard activates only on Enter, clears highlighting, and exports pristine SVG', async () => {
   vi.stubGlobal(
     'ResizeObserver',
@@ -130,18 +285,31 @@ it('search keyboard activates only on Enter, clears highlighting, and exports pr
   fireEvent.keyDown(input, { key: 'ArrowDown' });
   expect(document.querySelector('.diagram-node-highlight')).toBeNull();
   fireEvent.keyDown(input, { key: 'Enter' });
-  expect(screen.getAllByRole('option')[0].getAttribute('aria-selected')).toBe(
-    'true',
-  );
-  expect(document.querySelector('.diagram-node-highlight')).not.toBeNull();
+  expect(screen.getByRole('region', { name: 'Node details' })).toBeTruthy();
+  expect(document.querySelector('.inspection-selected')).not.toBeNull();
+  expect(screen.getByText('Outgoing · 1')).toBeTruthy();
+  const connectedNode = screen.getByRole('button', {
+    name: /Billing.*B · No label/,
+  });
+  fireEvent.click(connectedNode);
+  expect(screen.getByText('Incoming · 1')).toBeTruthy();
+  expect(
+    document.querySelector('.inspection-selected')?.getAttribute('data-id'),
+  ).toBe('B');
   fireEvent.click(
     screen.getByRole('button', { name: 'Copy diagram as image' }),
   );
   await screen.findByText('Image copied');
   expect(mocks.png).toHaveBeenCalledWith(props.svg);
   expect(props.svg.outerHTML).toBe(original);
-  fireEvent.change(input, { target: { value: 'Nothing' } });
-  expect(document.querySelector('.diagram-node-highlight')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Find node' }));
+  expect((screen.getByRole('combobox') as HTMLInputElement).value).toBe(
+    'Billing',
+  );
+  fireEvent.change(screen.getByRole('combobox'), {
+    target: { value: 'Nothing' },
+  });
+  expect(document.querySelector('.inspection-selected')).toBeNull();
   expect(screen.getByText('No matching nodes')).toBeTruthy();
   fireEvent(
     screen.getByRole('dialog'),

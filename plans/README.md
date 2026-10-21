@@ -19,6 +19,9 @@
 
 - [004 — Bulk tab closing](004-bulk-tab-closing.md): complete; native and automated validation evidence.
 
+- [014 — Find and focus flowchart nodes](014-find-and-focus-flowchart-nodes.md): implementation delivered and approved on 2026-10-21; native validation evidence and remaining checks recorded.
+- [015 — Inspect a node's direct connections](015-inspect-direct-node-connections.md): complete; accepted, implemented, and locally validated on 2026-10-21.
+
 Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 
 [Proposal 002](../specs/002-assisted-artifact-inventory.md) and its pilot are deferred while Horizon 1 authoring is the active focus. It has no implementation plan. If resumed, resolve its open decisions and record acceptance before creating the matching plan.

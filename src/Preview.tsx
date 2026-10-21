@@ -21,6 +21,7 @@ import { diagramPng } from './diagram-image';
 import { renderPeleDiagram } from './pele-renderer';
 import { outlineTargetId } from './outline';
 import { Copy, Download, Maximize2 } from 'lucide-react';
+import type { DiagramEdge } from './diagram-search';
 let renderQueue = Promise.resolve();
 function Diagram({
   source,
@@ -31,11 +32,17 @@ function Diagram({
   source: string;
   filename: string;
   ordinal: number;
-  onExplore: (svg: SVGSVGElement, title: string, nodeIds?: string[]) => void;
+  onExplore: (
+    svg: SVGSVGElement,
+    title: string,
+    nodeIds?: string[],
+    edges?: DiagramEdge[],
+  ) => void;
 }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, '');
   const host = useRef<HTMLDivElement>(null);
   const nodeIds = useRef<string[] | undefined>(undefined);
+  const edges = useRef<DiagramEdge[] | undefined>(undefined);
   const [error, setError] = useState('');
   const [rendered, setRendered] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -97,6 +104,7 @@ function Diagram({
               FORBID_TAGS: ['a', 'image', 'foreignObject'],
             });
             nodeIds.current = result.nodeIds;
+            edges.current = result.edges;
             setError('');
             setRendered(source);
           }
@@ -128,6 +136,7 @@ function Diagram({
                 svg,
                 `${filename} · Diagram ${ordinal}`,
                 nodeIds.current,
+                edges.current,
               );
           }}
         >
@@ -244,7 +253,12 @@ export const Preview = forwardRef<
     content: string;
     onLink: (href: string) => void;
     filename?: string;
-    onExplore?: (svg: SVGSVGElement, title: string, nodeIds?: string[]) => void;
+    onExplore?: (
+      svg: SVGSVGElement,
+      title: string,
+      nodeIds?: string[],
+      edges?: DiagramEdge[],
+    ) => void;
   }
 >(function Preview(
   { content, onLink, filename = 'document', onExplore = () => {} },

@@ -1,6 +1,6 @@
 # Current architecture
 
-Updated: 2026-10-19, including session continuity, the visual experience, document section navigation, and readable tables (increments 009–012). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-10-21, including focused diagram viewing and direct connection inspection (increments 013–015). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
@@ -51,6 +51,12 @@ Session metadata is written atomically by Rust after workspace/tab navigation ch
 Bulk tab actions emit `close-tabs-requested` with an all/others scope. Rust stores menu handles in `TabMenu`; `set_tab_menu_state` only updates their enabled state. React queues availability updates in order and revalidates targets inside its action lock. It removes tabs only after the targeted dirty documents have been resolved; partial-save failures retain every editor and the successful saves already completed. The bulk prompt lists affected relative paths in a bounded scrollable list.
 
 While an action is pending, background UI is inert. CodeMirror checks the synchronous action lock at transaction dispatch, including undo transactions that bypass transaction filters. This preserves mounted editor state/history and prevents edits during pending-close resolution without introducing new filesystem access.
+
+## Focused diagrams and node search
+
+`pele-renderer.ts` derives expected flowchart node IDs from Pele's parsed source model after rendering, excluding subgraph IDs; for C4 diagrams, it uses Pele's C4 parser to derive shape aliases and relationship endpoints. Preview forwards these identities alongside the current sanitized SVG to App. `diagram-search.ts` validates a complete one-to-one node mapping against documented `pele-node` groups and `data-id`, extracts displayed label text, normalizes search terms, and computes target viewport geometry. Unknown mappings disable search rather than returning a partial list.
+
+`DiagramFocusView.tsx` uses a native HTML dialog and a namespaced SVG copy with explicit natural dimensions. Its viewport transforms the art container without rerendering Pele. Search and node inspection measure node bounds relative to that container; selected nodes and their incident edges receive transient classes in the view-only SVG copy. `diagram-search.ts` classifies direct edges from the same Pele source model and exact authored edge IDs; only explicit arrow styles determine flowchart direction. C4 relationship aliases map directly to rendered edge IDs, with `BiRel` and `Rel_U` classified as two-way and undirected. The inspector excludes flowchart subgraph endpoints and C4 boundaries; flowchart parallel edges and self-loops retain their existing support. Image export uses the original sanitized SVG. App dismisses the view on document/source/generation, pane mode, Connections, or guarded-action changes. All inspection state is transient. See plans 014 and 015 for validation evidence and limits.
 
 ## Preview and security
 

@@ -16,21 +16,26 @@ import {
   Search,
   Copy,
   Download,
+  Network,
 } from 'lucide-react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { diagramPng } from './diagram-image';
 import { focusNode, matchingNodes, readDiagramNodes } from './diagram-search';
 import type { Box, Viewport } from './diagram-search';
+import { inspectConnections } from './diagram-search';
+import type { DiagramEdge } from './diagram-search';
 
 export function DiagramFocusView({
   svg,
   title,
   nodeIds,
+  edges = [],
   onClose,
 }: {
   svg: SVGSVGElement;
   title: string;
   nodeIds?: string[];
+  edges?: DiagramEdge[];
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -42,11 +47,20 @@ export function DiagramFocusView({
   const close = useRef(onClose);
   close.current = onClose;
   const fitting = useRef(true);
-  const drag = useRef<{ x: number; y: number } | null>(null);
+  const suppressBackgroundClick = useRef(false);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+    nodeId?: string;
+    moved: boolean;
+  } | null>(null);
   const [view, setView] = useState<Viewport>({ scale: 1, x: 0, y: 0 });
   const currentView = useRef(view);
   currentView.current = view;
   const [searchOpen, setSearchOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [choice, setChoice] = useState(-1);
   const [selection, setSelection] = useState<{ id: string; box: Box } | null>(
@@ -72,6 +86,17 @@ export function DiagramFocusView({
     () => matchingNodes(nodes ?? [], query),
     [nodes, query],
   );
+  const connections = selection ? inspectConnections(edges, selection.id) : [];
+  const visibleConnections = connections.filter(
+    (edge) => nodeIds?.includes(edge.start) && nodeIds.includes(edge.end),
+  );
+  const excludedConnections = connections.length - visibleConnections.length;
+  const neighbors = new Set(
+    visibleConnections
+      .flatMap((e) => [e.start, e.end])
+      .filter((id) => id !== selection?.id),
+  );
+  const nodeMap = new Map((nodes ?? []).map((node) => [node.id, node]));
   const markup = useMemo(() => {
     const copy = svg.cloneNode(true) as SVGSVGElement;
     // Namespace only SVG infrastructure IDs; authored node data-id stays intact.
@@ -100,13 +125,26 @@ export function DiagramFocusView({
         }
         element.setAttribute(attribute.name, value);
       }
+    for (const group of copy.querySelectorAll<SVGGElement>(
+      'g.pele-node[data-id]',
+    )) {
+      if (group.dataset.id === selection?.id)
+        group.classList.add('inspection-selected');
+      else if (neighbors.has(group.dataset.id ?? ''))
+        group.classList.add('inspection-neighbor');
+    }
+    for (const group of copy.querySelectorAll<SVGGElement>(
+      'g.pele-edge[data-id]',
+    ))
+      if (visibleConnections.some((edge) => edge.id === group.dataset.id))
+        group.classList.add('inspection-edge');
     copy.setAttribute('width', String(dimensions.width));
     copy.setAttribute('height', String(dimensions.height));
     copy.style.width = `${dimensions.width}px`;
     copy.style.height = `${dimensions.height}px`;
     copy.style.maxWidth = 'none';
     return copy.outerHTML;
-  }, [svg, dimensions, resultsId]);
+  }, [svg, dimensions, resultsId, selection?.id, edges, nodeIds]);
   function fitScale() {
     const box = stage.current?.getBoundingClientRect();
     return box
@@ -200,6 +238,29 @@ export function DiagramFocusView({
     setSelection(null);
     searchButton.current?.focus();
   }
+  function selectNode(id: string, center = false) {
+    const drawing = art.current,
+      canvas = stage.current;
+    const group = Array.from(
+      drawing?.querySelectorAll<SVGGElement>('g.pele-node[data-id]') ?? [],
+    ).find((g) => g.dataset.id === id);
+    if (!group || !drawing || !canvas) return;
+    const r = group.getBoundingClientRect(),
+      a = drawing.getBoundingClientRect(),
+      s = currentView.current.scale;
+    const box = {
+      x: (r.left - a.left) / s - dimensions.width / 2,
+      y: (r.top - a.top) / s - dimensions.height / 2,
+      width: r.width / s,
+      height: r.height / s,
+    };
+    if (center && id !== selection?.id) {
+      fitting.current = false;
+      setView(focusNode(box, canvas.getBoundingClientRect(), s));
+    }
+    setSelection({ id, box });
+    setDetailsOpen(true);
+  }
   function activate(index: number) {
     const node = matches[index];
     const canvas = stage.current;
@@ -226,6 +287,8 @@ export function DiagramFocusView({
     setView(focusNode(box, canvas.getBoundingClientRect(), s));
     setChoice(index);
     setSelection({ id: node.id, box });
+    setSearchOpen(false);
+    setDetailsOpen(true);
   }
   async function exportImage(copy: boolean) {
     if (exporting) return;
@@ -279,7 +342,12 @@ export function DiagramFocusView({
       onCancel={(event) => {
         event.preventDefault();
         if (searchOpen) closeSearch();
-        else close.current();
+        else if (detailsOpen) {
+          setDetailsOpen(false);
+          setSelection(null);
+          setQuery('');
+          setChoice(-1);
+        } else close.current();
       }}
     >
       <header>
@@ -291,9 +359,35 @@ export function DiagramFocusView({
               title="Find node"
               aria-label="Find node"
               aria-expanded={searchOpen}
-              onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              onClick={() => {
+                if (searchOpen) closeSearch();
+                else {
+                  setDetailsOpen(false);
+                  setSearchOpen(true);
+                }
+              }}
             >
               <Search />
+            </button>
+          )}
+          {nodes !== null && (
+            <button
+              title="Node details"
+              aria-label="Node details"
+              aria-expanded={detailsOpen}
+              onClick={() => {
+                if (detailsOpen) {
+                  setDetailsOpen(false);
+                  setSelection(null);
+                  setQuery('');
+                  setChoice(-1);
+                } else {
+                  setSearchOpen(false);
+                  setDetailsOpen(true);
+                }
+              }}
+            >
+              <Network />
             </button>
           )}
           {icon(
@@ -414,6 +508,94 @@ export function DiagramFocusView({
             </div>
           </section>
         )}
+        {detailsOpen && (
+          <section className="diagram-search" aria-label="Node details">
+            <div className="diagram-search-heading">
+              <strong>Node details</strong>
+              {icon(
+                'Clear selection',
+                () => {
+                  setDetailsOpen(false);
+                  setSelection(null);
+                  setQuery('');
+                  setChoice(-1);
+                },
+                <X size={16} />,
+              )}
+            </div>
+            {!selection ? (
+              <p>Select a node or find one in Search.</p>
+            ) : (
+              <>
+                <p>
+                  <strong>
+                    {nodeMap.get(selection.id)?.label ?? selection.id}
+                  </strong>
+                  <br />
+                  <small>{selection.id}</small>
+                </p>
+                {(
+                  [
+                    'incoming',
+                    'outgoing',
+                    'two-way',
+                    'undirected',
+                    'other',
+                    'self',
+                  ] as const
+                ).map((kind) => {
+                  const list = visibleConnections.filter(
+                    (edge) => edge.kind === kind,
+                  );
+                  if (!list.length) return null;
+                  const heading =
+                    kind === 'incoming'
+                      ? 'Incoming'
+                      : kind === 'outgoing'
+                        ? 'Outgoing'
+                        : kind === 'two-way'
+                          ? 'Two-way'
+                          : kind === 'undirected'
+                            ? 'Undirected'
+                            : kind === 'self'
+                              ? 'Self-connections'
+                              : 'Other connections';
+                  return (
+                    <div className="diagram-connection-group" key={kind}>
+                      <h3>
+                        {heading} · {list.length}
+                      </h3>
+                      {list.map((edge, i) => {
+                        const neighbor =
+                          edge.start === selection.id ? edge.end : edge.start;
+                        const node = nodeMap.get(neighbor);
+                        return (
+                          <button
+                            key={`${edge.id}-${i}`}
+                            onClick={() => selectNode(neighbor, true)}
+                          >
+                            <span>{node?.label ?? neighbor}</span>
+                            <small>
+                              {neighbor} · {edge.label || 'No label'}
+                            </small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+                {visibleConnections.length === 0 &&
+                  excludedConnections === 0 && <p>No direct connections</p>}
+                {excludedConnections > 0 && (
+                  <p>
+                    {excludedConnections} connections to groups or boundaries
+                    excluded
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        )}
         <div
           ref={stage}
           tabIndex={0}
@@ -421,14 +603,30 @@ export function DiagramFocusView({
           aria-label="Diagram canvas"
           onPointerDown={(e) => {
             if (e.button !== 0) return;
+            const target = (e.target as Element).closest<SVGGElement>(
+              'g.pele-node[data-id]',
+            );
             e.currentTarget.focus();
             fitting.current = false;
-            drag.current = { x: e.clientX - view.x, y: e.clientY - view.y };
-            e.currentTarget.setPointerCapture(e.pointerId);
+            drag.current = {
+              x: e.clientX - view.x,
+              y: e.clientY - view.y,
+              startX: e.clientX,
+              startY: e.clientY,
+              nodeId: target?.dataset.id,
+              moved: false,
+            };
+            e.currentTarget.setPointerCapture?.(e.pointerId);
           }}
           onPointerMove={(e) => {
             if (drag.current) {
               const start = drag.current;
+              if (
+                Math.hypot(e.clientX - start.startX, e.clientY - start.startY) >
+                6
+              )
+                start.moved = true;
+              if (!start.moved) return;
               setView((v) => ({
                 ...v,
                 x: e.clientX - start.x,
@@ -437,7 +635,24 @@ export function DiagramFocusView({
             }
           }}
           onPointerUp={() => {
+            const point = drag.current;
+            if (point?.nodeId && !point.moved) selectNode(point.nodeId);
+            suppressBackgroundClick.current = Boolean(
+              point?.moved || point?.nodeId,
+            );
             drag.current = null;
+          }}
+          onClick={(e) => {
+            if (suppressBackgroundClick.current) {
+              suppressBackgroundClick.current = false;
+              return;
+            }
+            if (e.target === e.currentTarget) {
+              setSelection(null);
+              setDetailsOpen(false);
+              setQuery('');
+              setChoice(-1);
+            }
           }}
           onPointerCancel={() => {
             drag.current = null;

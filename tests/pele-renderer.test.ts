@@ -2,6 +2,7 @@
 import { expect, it } from 'vitest';
 import DOMPurify from 'dompurify';
 import { renderPeleDiagram } from '../src/pele-renderer';
+import { readDiagramNodes } from '../src/diagram-search';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -41,6 +42,11 @@ it.each([
     'architecture',
   ],
   [
+    'C4 container',
+    'C4Container\nPerson(user, "User", "A person")\nContainer(api, "API", "Node", "Service")\nContainerDb(db, "Database", "Postgres", "Storage")\nRel(user, api, "calls")\nBiRel(api, db, "reads and writes")\nRel_U(db, user, "observes")',
+    'c4',
+  ],
+  [
     'style and init directive',
     '%%{init: {"theme":"neutral"}}%%\nflowchart LR\n A[Start] --> B[Finish]\n style A fill:#f9f,stroke:#333,stroke-width:2px',
     'flowchart',
@@ -49,6 +55,53 @@ it.each([
   const rendered = await renderPeleDiagram(source, 'compatibility-case');
   expect(rendered.type).toBe(type);
   expect(rendered.svg).toContain('<svg');
+});
+
+it('maps C4 aliases and relationships to exact sanitized SVG identities', async () => {
+  const source =
+    'C4Container\nPerson(user, "User", "A person")\nContainer(api, "API", "Node", "Service")\nContainerDb(db, "Database", "Postgres", "Storage")\nRel(user, api, "calls")\nBiRel(api, db, "reads and writes")\nRel_U(db, user, "observes")';
+  const rendered = await renderPeleDiagram(source, 'c4-inspection');
+  const host = document.createElement('div');
+  host.innerHTML = DOMPurify.sanitize(rendered.svg, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ['a', 'image', 'foreignObject'],
+  });
+  const svg = host.querySelector('svg')!;
+
+  expect(rendered.nodeIds).toEqual(['user', 'api', 'db']);
+  expect(rendered.edges).toEqual([
+    expect.objectContaining({
+      id: 'user-api',
+      start: 'user',
+      end: 'api',
+      label: 'calls',
+      kind: 'arrow',
+    }),
+    expect.objectContaining({
+      id: 'api-db',
+      start: 'api',
+      end: 'db',
+      label: 'reads and writes',
+      kind: 'two-way',
+    }),
+    expect.objectContaining({
+      id: 'db-user',
+      start: 'db',
+      end: 'user',
+      label: 'observes',
+      kind: 'undirected',
+    }),
+  ]);
+  expect(readDiagramNodes(svg, rendered.nodeIds!)).toEqual([
+    { id: 'user', label: 'User' },
+    { id: 'api', label: 'API' },
+    { id: 'db', label: 'Database' },
+  ]);
+  expect(
+    Array.from(svg.querySelectorAll('.pele-edge[data-id]')).map((edge) =>
+      edge.getAttribute('data-id'),
+    ),
+  ).toEqual(rendered.edges!.map((edge) => edge.id));
 });
 
 it('keeps generated SVG safe and interactive resources disabled', async () => {

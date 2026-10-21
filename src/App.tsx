@@ -131,6 +131,7 @@ export function App() {
     svg: SVGSVGElement;
     title: string;
     nodeIds?: string[];
+    edges?: import('./diagram-search').DiagramEdge[];
   } | null>(null);
   const [tree, setTree] = useState<Record<string, Entry[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -1030,8 +1031,8 @@ export function App() {
                     ref={previewRef}
                     content={selected.content}
                     filename={selected.path.split('/').at(-1)}
-                    onExplore={(svg, title, nodeIds) =>
-                      setFocusedDiagram({ svg, title, nodeIds })
+                    onExplore={(svg, title, nodeIds, edges) =>
+                      setFocusedDiagram({ svg, title, nodeIds, edges })
                     }
                     onLink={(href) => {
                       const path = relativeLink(active, href);
@@ -1086,6 +1087,7 @@ export function App() {
                 svg={focusedDiagram.svg}
                 title={focusedDiagram.title}
                 nodeIds={focusedDiagram.nodeIds}
+                edges={focusedDiagram.edges}
                 onClose={() => setFocusedDiagram(null)}
               />
             )}

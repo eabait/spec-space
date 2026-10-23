@@ -22,6 +22,10 @@
 - [014 — Find and focus flowchart nodes](014-find-and-focus-flowchart-nodes.md): implemented locally and approved by the user on 2026-10-21; see plan 014 for observed native checks and remaining validation limits.
 
 - [015 — Inspect a node’s direct connections](015-inspect-direct-node-connections.md): implemented locally for flowcharts and C4; the C4 correction and automated evidence are in plan 015.
+- [016 — Jump from a diagram node to its Markdown definition](016-jump-from-diagram-node-to-source.md): rejected by the user on 2026-10-21; no implementation plan was created.
+- [017 — Agent palette and configurable CLI profiles](017-agent-palette-and-cli-profiles.md): accepted on 2026-10-21 with “si acepto”; one free-prompt action, reusable profiles, and Codex CLI. Plan 017 recorded; implementation pending.
+
+- [018 — GitHub release workflow](018-github-release-workflow.md): accepted on 2026-10-23; macOS builds and draft GitHub releases implemented and validated locally, hosted verification pending; see plan 018.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 

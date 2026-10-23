@@ -22,6 +22,10 @@
 - [014 — Find and focus flowchart nodes](014-find-and-focus-flowchart-nodes.md): implementation delivered and approved on 2026-10-21; native validation evidence and remaining checks recorded.
 - [015 — Inspect a node's direct connections](015-inspect-direct-node-connections.md): complete; accepted, implemented, and locally validated on 2026-10-21.
 
+- [017 — Agent palette and configurable CLI profiles](017-agent-palette-and-cli-profiles.md): pending; SPEC accepted on 2026-10-21, execution/skills/isolation checkpoint first.
+
+- [018 — GitHub release workflow](018-github-release-workflow.md): in progress; local implementation and validation complete, hosted verification pending.
+
 Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 
 [Proposal 002](../specs/002-assisted-artifact-inventory.md) and its pilot are deferred while Horizon 1 authoring is the active focus. It has no implementation plan. If resumed, resolve its open decisions and record acceptance before creating the matching plan.

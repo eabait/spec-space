@@ -61,3 +61,7 @@ Create Markdown files within the workspace using the native File menu or **+ New
 - Reject path traversal, symlinks, non-UTF-8 files, and operations outside the workspace.
 
 Available evidence and its limits are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
+## Release preparation
+
+The repository contains a macOS release-preparation workflow for version tags and manual retries. It checks versions and builds Apple Silicon/Intel ZIPs with checksums, then prepares a draft GitHub release for human review and publication. Developer ID signing, notarization, automatic publication, and app updates are excluded. Local validation has passed; actual hosted execution remains pending under [SPEC 018](specs/018-github-release-workflow.md) and [plan 018](plans/018-github-release-workflow.md). This infrastructure does not change application behavior.

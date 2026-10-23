@@ -65,3 +65,9 @@ The preview never changes the source. HTML is disabled. Pele loads lazily to ren
 ## Maintainability
 
 `App.tsx` and `lib.rs` currently coordinate the MVP. Split workspace, tab, or file-service responsibilities when an increment calls for it; avoid speculative layers. New disk rules belong in Rust, and text transformations must retain preservation tests.
+
+## Release infrastructure
+
+`.github/workflows/release.yml` separates tag/version validation, read-only macOS builds, and a contents-write draft-release job. `scripts/release/validate.py` resolves an existing tag to a commit and reads version metadata from that commit. Both build jobs check out that SHA, run existing checks, and compile locked dependencies. `package.py` checks the bundle version and architecture, creates ZIPs, verifies extracted executables, and writes SHA-256 files.
+
+`draft.py` verifies the complete asset set and the remote tag before release writes. It creates only drafts, preserves existing notes and unrelated assets, and replaces only workflow-labelled assets for the same source commit. Per-tag concurrency serializes workflow runs; draft-state checks guard individual API mutations. Human publication must wait for workflow completion because GitHub does not provide an atomic draft-only upload condition. The app has no dependency on this infrastructure and gains no remote permissions. Hosted verification remains pending; see plan 018.

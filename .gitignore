@@ -153,3 +153,7 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Release helper bytecode and generated archives
+__pycache__/
+release-assets/

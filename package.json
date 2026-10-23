@@ -9,8 +9,9 @@
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
     "test": "vitest run",
-    "format": "prettier --write src tests examples *.json *.ts *.md src-tauri/*.json src-tauri/capabilities/*.json specs plans",
-    "format:check": "prettier --check src tests examples *.json *.ts *.md src-tauri/*.json src-tauri/capabilities/*.json specs plans"
+    "format": "prettier --write src tests examples *.json *.ts *.md src-tauri/*.json src-tauri/capabilities/*.json specs plans .github/workflows",
+    "format:check": "prettier --check src tests examples *.json *.ts *.md src-tauri/*.json src-tauri/capabilities/*.json specs plans .github/workflows",
+    "test:release": "python3 -m unittest discover -s scripts/release -p \"test_*.py\""
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.0",

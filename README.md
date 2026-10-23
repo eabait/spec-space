@@ -83,3 +83,26 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 git diff --check
 ```
+
+## Prepare a GitHub release
+
+The `Prepare macOS release` workflow builds Apple Silicon (`arm64`) and Intel (`x86_64`) ZIP archives and checksum files, then creates a **draft** release. It does not publish, Developer ID sign, or notarize the application. macOS may block these downloads. No Apple credentials or personal access token are required; the release job uses GitHub's repository token.
+
+1. Select an unused version, such as `0.2.0` or `0.2.0-rc.1`. Keep `package.json`, both root version fields in `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and the local `spec-space` package entry in `src-tauri/Cargo.lock` consistent. Regenerate lockfiles with the package managers and review their changes. Do not change dependency versions merely to prepare a release.
+2. Run the checks above and `npm run test:release` (Python 3.11+). Review and commit the intended source, including the workflow and its helper scripts. Push that commit. Uncommitted local files are not included in a release build.
+3. Create and push a version tag pointing to that commit. For example, after choosing `0.2.0` and preparing its matching commit:
+
+   ```sh
+   git tag -a v0.2.0 -m "SpecSpace 0.2.0"
+   git push origin v0.2.0
+   ```
+
+4. Watch **Actions → Prepare macOS release**. The workflow validates the existing tag and versions, runs frontend/Rust checks on both macOS runners, builds the apps, verifies executable architecture and packaged version, extracts the ZIPs to check executable preservation, and uploads assets only after both builds succeed.
+5. Wait for the workflow to finish successfully, then open **Releases** and review the draft. Download the ZIP for the intended Mac and its `.sha256` file into the same directory. Run, for example, `shasum -a 256 -c SpecSpace-v0.2.0-macos-arm64.zip.sha256`, extract the archive, and test the app on the intended architecture. Automated checks do not establish successful native launch on every supported Mac.
+6. Edit the release notes and publish manually when ready. Versions containing a prerelease suffix are marked as prereleases. The workflow never publishes a draft or modifies an already published release.
+
+To retry, rerun the failed workflow or use **Actions → Prepare macOS release → Run workflow** with the existing tag. The workflow must be present on the default branch for the manual control to appear. It builds the tag's commit, not the selected branch's current application source; the tagged commit must include the release helpers. Existing draft notes and unrelated assets are preserved. Only assets carrying this workflow's ownership label for the same source commit can be replaced. An unowned filename collision fails with an explanation; inspect it manually instead of deleting unrelated content. Do not move release tags.
+
+Do not publish or edit draft assets while a run is uploading. Draft state is checked before each mutation, but GitHub does not offer an atomic draft-only upload condition. A failed upload can leave an incomplete draft; rerun before publishing. A published version requires a new version/tag for changed binaries.
+
+Hosted macOS runner availability and account usage limits apply. The workflow uses `macos-15` and `macos-15-intel`; see [GitHub's runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). Local workflow validation is recorded in [plan 018](plans/018-github-release-workflow.md); the first actual hosted run remains a separate verification step after pushing. For workflow edits, run `actionlint .github/workflows/release.yml`, format the YAML with Prettier, and check the Python helpers with Black.

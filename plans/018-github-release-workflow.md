@@ -44,3 +44,9 @@ Observed on 2026-10-23:
 Remaining: a separately authorized GitHub-hosted run after the workflow is committed/pushed must prove runner availability, repository-token permissions, artifact transfer, and real draft creation/retry. No native app launch was performed; user app sessions were untouched. No commit, push, tag, remote workflow run, release, signing, or notarization was performed. SPEC 018 remains In progress until the required hosted evidence exists.
 
 The release helper uses the [GitHub Releases REST API](https://docs.github.com/en/rest/releases/releases) and verifies draft state before each mutation. Concurrent human publication cannot be made atomic with an asset upload; README instructs maintainers to wait for workflow completion. This API limitation is explicit rather than hidden by a claim of absolute race protection.
+
+## Hosted test timeout follow-up — 2026-10-24
+
+The user reported a hosted failure: 54 frontend tests passed and the bulk-tab menu/dirty-tab integration test exceeded Vitest’s default 5000 ms deadline. The log does not establish a functional regression or prove the cause. As a routine validation adjustment within accepted SPEC 018, limit release-run frontend execution to two workers and allow 15000 ms per test. Preserve every assertion, finite deadlines, and local default settings. Do not move or push the existing version tag. Hosted confirmation remains pending.
+
+Local verification: all 55 frontend tests passed with the exact revised command (4.11 seconds total); actionlint, changed-file Prettier checks, and git diff checks passed. No hosted rerun, commit, push, or tag mutation was performed.

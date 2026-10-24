@@ -77,7 +77,8 @@ jobs:
       - name: Check release helpers and application
         run: |
           python -m unittest discover -s scripts/release -p 'test_*.py'
-          npm test
+          # Bound jsdom contention and allow slower hosted macOS runners.
+          npm test -- --maxWorkers=2 --testTimeout=15000
           npm run build
           npm run format:check
           cargo test --locked --manifest-path src-tauri/Cargo.toml

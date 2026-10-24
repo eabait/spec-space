@@ -36,6 +36,8 @@ Bulk tab closing is implemented through SPEC 004. Mermaid-syntax PNG export and 
 
 ## Latest task
 
+2026-10-24: Following a user-reported hosted 5000 ms integration-test timeout, adjusted SPEC 018 release validation to two Vitest workers and a 15000 ms per-test limit, preserving all assertions. All 55 frontend tests and workflow checks passed locally; hosted confirmation remains pending. See plan 018. No commit, push, or tag changes performed.
+
 2026-10-23: The user explicitly accepted SPEC 018 with “aceptada”. [Plan 018](plans/018-github-release-workflow.md) was recorded before implementation. Release workflow implementation and local validation are complete: 12 release tests, 55 frontend tests, 9 Rust tests, actionlint, formatting, both macOS builds, archive extraction/architecture/version checks, and checksums passed. SPEC 018 remains In progress pending a separately authorized hosted run. No commit, push, tag, hosted run, or release was created. This supersedes the acceptance-pending entry below.
 
 2026-10-23: Prepared [SPEC 018 — GitHub release workflow](specs/018-github-release-workflow.md) following the user's request for release automation. Proposed scope: validate version tags, check and build macOS Apple Silicon/Intel packages, and attach archives/checksums to a draft release for manual publication. Acceptance pending; no workflow, plan, tag, or release created. SPEC 017 remains accepted and pending independently. Directories were enumerated before assigning 018; next unused ID: 019. This supersedes earlier next-ID notes.

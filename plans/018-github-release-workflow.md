@@ -1,6 +1,6 @@
 # 018 — GitHub release workflow
 
-Status: In progress. Local implementation and validation complete on 2026-10-23; hosted verification pending.
+Status: Complete on 2026-10-24.
 
 ## Contract and authorization
 
@@ -54,3 +54,9 @@ Local verification: all 55 frontend tests passed with the exact revised command 
 ## Hosted draft permission follow-up — 2026-10-24
 
 The second hosted run built and transferred both architecture artifacts, then GitHub returned HTTP 403 while creating the draft release. No release exists for the tag. The original client discarded GitHub's response body, so the exact policy or permission reason was not observable from that run. Added bounded API error reporting that includes GitHub's message and request ID while redacting the workflow token. A focused test proves that the diagnostic retains the reason and does not expose the token; all 13 release-helper tests and formatting checks pass locally. Push the fix to the default branch before updating the tag so the tagged release source is also reachable from `main`; use the next hosted result to resolve any repository-level permission setting rather than guessing from the status code alone.
+
+## Hosted closure — 2026-10-24
+
+Pushed the validated commits to `main`, then updated `v0.1.0` to commit `d1cffd381c0d02d9f844f52fb9c17ddf25ab0ba7`. Hosted run [40109531800](https://github.com/eabait/spec-space/actions/runs/40109531800) completed successfully: tag/version validation, Apple Silicon build, Intel build, artifact upload/download, and draft preparation all passed. GitHub recorded both temporary workflow artifacts (`macos-arm64`, 3,693,779 bytes; `macos-x86_64`, 3,758,730 bytes) for the expected tag and commit. The draft helper can finish only after creating or finding a matching draft, verifying the remote tag and draft state, and uploading or verifying the complete four-file release asset set, so the successful final job is evidence of the real draft lifecycle required by SPEC 018.
+
+The earlier 403 did not recur once the tagged commit was also present on the default branch. The exact GitHub policy that produced the earlier denial remains unproven; retain the safer operational rule that release commits reach `main` before tagging. The workflow did not publish the draft. Native launch on Apple Silicon and Intel remains a documented manual release-review step, and the unsigned/unnotarized limitation remains explicit.

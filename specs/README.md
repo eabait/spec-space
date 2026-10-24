@@ -25,7 +25,7 @@
 - [016 — Jump from a diagram node to its Markdown definition](016-jump-from-diagram-node-to-source.md): rejected by the user on 2026-10-21; no implementation plan was created.
 - [017 — Agent palette and configurable CLI profiles](017-agent-palette-and-cli-profiles.md): accepted on 2026-10-21 with “si acepto”; one free-prompt action, reusable profiles, and Codex CLI. Plan 017 recorded; implementation pending.
 
-- [018 — GitHub release workflow](018-github-release-workflow.md): accepted on 2026-10-23; macOS builds and draft GitHub releases implemented and validated locally, hosted verification pending; see plan 018.
+- [018 — GitHub release workflow](018-github-release-workflow.md): implemented on 2026-10-24; local and hosted macOS build/draft validation recorded in plan 018.
 
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 

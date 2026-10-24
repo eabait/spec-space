@@ -1,6 +1,6 @@
 # 018 — GitHub release workflow
 
-Status: In progress. Accepted on 2026-10-23; local implementation validated, hosted verification pending.
+Status: Implemented on 2026-10-24. Accepted on 2026-10-23.
 
 ## Problem and intended outcome
 
@@ -48,4 +48,4 @@ The implementation plan will select supported runner labels and exact action rev
 
 The user explicitly accepted SPEC 018 with “aceptada” on 2026-10-23. Implementation follows the [recorded plan](../plans/018-github-release-workflow.md). Remote execution and publication remain outside this task.
 
-Local implementation and validation results are recorded in the matching plan. Both macOS archives were built and verified locally. The hosted workflow and real draft-release lifecycle remain unverified; do not mark this increment Implemented until that evidence is recorded.
+Local and hosted validation results are recorded in the matching plan. GitHub Actions run 40109531800 validated the tag, completed both macOS builds, transferred both architecture artifacts, and completed the draft-release job successfully. Publication and native launch confirmation remain human steps; no release was published automatically.

@@ -24,7 +24,7 @@
 
 - [017 — Agent palette and configurable CLI profiles](017-agent-palette-and-cli-profiles.md): pending; SPEC accepted on 2026-10-21, execution/skills/isolation checkpoint first.
 
-- [018 — GitHub release workflow](018-github-release-workflow.md): in progress; local implementation and validation complete, hosted verification pending.
+- [018 — GitHub release workflow](018-github-release-workflow.md): complete; hosted Apple Silicon/Intel builds and draft preparation passed on 2026-10-24.
 
 Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 

@@ -36,6 +36,8 @@ Bulk tab closing is implemented through SPEC 004. Mermaid-syntax PNG export and 
 
 ## Latest task
 
+2026-10-24: SPEC 018 is implemented. After pushing its commits to `main`, hosted run 40109531800 passed tag/version validation, Apple Silicon and Intel builds, artifact transfer, and draft-release preparation for `v0.1.0`. Both architecture artifacts were recorded against commit `d1cffd3`; the workflow did not publish the draft. Native launch and unsigned/unnotarized distribution remain explicit human review steps. See plan 018.
+
 2026-10-24: SPEC 018's second hosted run passed both macOS build jobs but GitHub returned HTTP 403 when creating the draft; no release was created. Added token-safe API diagnostics and a focused test, bringing release-helper coverage to 13 passing tests. The exact GitHub permission reason requires the next hosted response; see plan 018.
 
 2026-10-24: Following a user-reported hosted 5000 ms integration-test timeout, adjusted SPEC 018 release validation to two Vitest workers and a 15000 ms per-test limit, preserving all assertions. All 55 frontend tests and workflow checks passed locally; hosted confirmation remains pending. See plan 018. No commit, push, or tag changes performed.

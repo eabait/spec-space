@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+from urllib.error import HTTPError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -39,9 +40,23 @@ class GitHub:
             headers=headers,
             method=method,
         )
-        with urlopen(request, timeout=120) as response:
-            body = response.read()
-            return json.loads(body) if body else None
+        try:
+            with urlopen(request, timeout=120) as response:
+                body = response.read()
+                return json.loads(body) if body else None
+        except HTTPError as error:
+            body = error.read(8192).decode("utf-8", errors="replace")
+            try:
+                message = str(json.loads(body).get("message", "No API message"))
+            except (ValueError, AttributeError):
+                message = "Non-JSON error response"
+            message = (
+                message.replace(self.token, "[REDACTED]") if self.token else message
+            )
+            raise RuntimeError(
+                f"GitHub {method} {path.split('?')[0]} returned HTTP {error.code}: "
+                f"{message}. Request ID: {error.headers.get('X-GitHub-Request-Id', 'unknown')}"
+            ) from None
 
     def pages(self, path):
         page = 1

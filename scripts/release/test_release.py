@@ -1,3 +1,4 @@
+import io
 import hashlib
 import json
 from pathlib import Path
@@ -7,7 +8,8 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
-from draft import prepare
+from urllib.error import HTTPError
+from draft import GitHub, prepare
 from validate import validate, version_from_tag
 
 SHA = "a" * 40
@@ -257,3 +259,20 @@ class VersionTests(unittest.TestCase):
                 # Working-tree edits must not alter what is released from the tag.
                 (root / "package.json").write_text('{"version":"9.9.9"}')
                 self.assertEqual(validate("v1.2.3")["version"], "1.2.3")
+
+
+class APIErrorTests(unittest.TestCase):
+    def test_forbidden_reports_reason_without_token(self):
+        error = HTTPError(
+            "https://api.github.com/test",
+            403,
+            "Forbidden",
+            {"X-GitHub-Request-Id": "test-id"},
+            io.BytesIO(b'{"message":"Resource not accessible secret-token"}'),
+        )
+        with patch("draft.urlopen", side_effect=error):
+            with self.assertRaises(RuntimeError) as raised:
+                GitHub("owner/repo", "secret-token").request("POST", "releases", {})
+        self.assertIn("Resource not accessible", str(raised.exception))
+        self.assertIn("test-id", str(raised.exception))
+        self.assertNotIn("secret-token", str(raised.exception))

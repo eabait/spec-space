@@ -1,6 +1,6 @@
 # SpecSpace Desktop
 
-A focused local Markdown workspace for software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Pele for Mermaid-syntax previews. No account, server, cloud integration, or collaboration service.
+A local Markdown and Structurizr DSL workspace for understanding software specifications. Built with Tauri 2, React, TypeScript, Vite, CodeMirror 6, and Pele for Mermaid-syntax previews. No account, server, cloud integration, or collaboration service.
 
 The interface uses a warm editorial reading surface and a connected-module blueprint identity. At wide sizes, Source and Preview can share the document view; compact windows let you focus on either pane with the existing controls.
 
@@ -13,7 +13,7 @@ npm ci
 npm run tauri dev
 ```
 
-Choose **File → Open Folder…** (⌘O), then select a folder containing `.md` or `.markdown` files. The `examples` folder is a ready-to-use workspace.
+Choose **File → Open Folder…** (⌘O), then select a folder containing `.md`, `.markdown`, or `.dsl` files. The `examples` folder is a ready-to-use workspace.
 
 Use **Connections** to explore saved Markdown references as a directed graph. Select a node to open its document and inspect its outgoing references and backlinks; **Go to editor** returns to editing. Broken references lists missing Markdown destinations. The graph fits the window; use zoom controls or scrolling for detail, and All documents for full paths.
 
@@ -21,7 +21,7 @@ With a workspace open, use File → New Markdown Document… (⌘N) or the plus 
 
 Use **File → Close All Tabs** or **Close Other Tabs**, or right-click a tab for the same actions. Pending changes offer Save All, Discard Changes, or Cancel. A save failure keeps all tabs open; earlier successful saves remain saved.
 
-After a normal quit, SpecSpace restores the last workspace and open Markdown tabs from their current disk contents, including tab order and the active document. Unsaved edits, undo history, and view state are not restored. Missing documents are skipped with a status notice.
+After a normal quit, SpecSpace restores the last workspace and open Markdown and DSL tabs from their current disk contents, including tab order and the active document. Unsaved edits, undo history, and view state are not restored. Missing documents are skipped with a status notice.
 
 Use **Outline** in the document toolbar to navigate headings in the active document. The nested list follows unsaved edits and distinguishes repeated heading titles; selecting an entry scrolls the current Source, Preview, or both Split panes.
 
@@ -38,6 +38,16 @@ npm run tauri build
 Creates `src-tauri/target/release/bundle/macos/SpecSpace.app`. This local build is not notarized for distribution. For a faster development bundle, use `npm run tauri -- build --debug`.
 
 `npm run dev` runs only the browser UI; local filesystem operations require the desktop app.
+
+### Explore Structurizr architecture
+
+Open an existing `.dsl` file, such as `examples/architecture.dsl`. Choose a declared view from the selector. Use the visible zoom, Fit, and Back controls, drag the canvas to pan, and search or select an element to inspect its metadata and direct relationships. Relationship buttons navigate to visible endpoints and identify endpoints outside the active view. Available child views appear in the inspector.
+
+**Source**, **Architecture**, and **Split** use the current document buffer. Saving uses the original text and existing conflict checks. Invalid source stays editable, with parsing diagnostics and an explicitly stale last valid diagram. Each open architecture document retains its selection, viewport, and view history during the session.
+
+Supported static views are System Landscape, System Context, Container, and Component. The adapter preserves declared membership, wildcard expansion, includes/excludes, direct and supported implied relationships, system/container boundaries, and nested model groups. A model without declared views receives visibly inferred default views. The pinned parser covers people, software systems, containers, components, descriptions, technologies, tags, hierarchical identifiers, and their relationships. Colors, stroke, font size, opacity, dashed/dotted borders, relationship styles, and Box, RoundedBox, Circle, Ellipse, and Cylinder element shapes are supported. Other shapes use a diagnosed box fallback.
+
+Unresolved includes, scripts/plugins, remote themes/images, unsupported views, and skipped syntax generate incomplete-coverage diagnostics. Dynamic, Deployment, filtered, custom, and image views are outside this increment's supported coverage. All runtime code is bundled locally. Source text remains authoritative, and inferred views and presentation state are transient. Persistent layout, sidecars, include resolution, and visual model editing are deferred. Parser provenance and update instructions are recorded with the vendored source. [C4 Hero parser provenance](src/c4/upstream/README.md)
 
 ### Set up Rust for local builds
 

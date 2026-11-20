@@ -61,6 +61,12 @@ fn markdown(path: &Path) -> bool {
         .and_then(|e| e.to_str())
         .is_some_and(|e| matches!(e.to_ascii_lowercase().as_str(), "md" | "markdown"))
 }
+fn supported_document(path: &Path) -> bool {
+    markdown(path)
+        || path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("dsl"))
+}
 // Never accept absolute paths, traversal, or symlinks, including intermediate directories.
 fn resolve(root: &Path, relative: &str) -> Result<PathBuf, String> {
     let path = Path::new(relative);
@@ -87,8 +93,8 @@ fn resolve(root: &Path, relative: &str) -> Result<PathBuf, String> {
     Ok(canonical)
 }
 fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
-    if !markdown(path) {
-        return Err("Only .md and .markdown files can be opened.".into());
+    if !supported_document(path) {
+        return Err("Only .md, .markdown, and .dsl files can be opened.".into());
     }
     let file = fs::File::open(path).map_err(err)?;
     if !file.metadata().map_err(err)?.is_file() {
@@ -99,7 +105,7 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
         .read_to_end(&mut bytes)
         .map_err(err)?;
     if bytes.len() as u64 > MAX_BYTES {
-        return Err("This MVP supports Markdown files up to 8 MiB.".into());
+        return Err("Workspace documents are limited to 8 MiB.".into());
     }
     Ok(bytes)
 }
@@ -125,7 +131,7 @@ fn valid_session_workspace(record: &SessionRecord) -> Result<(), String> {
 fn safe_session_tab(path: &str) -> bool {
     !path.is_empty()
         && path.len() <= 4096
-        && markdown(Path::new(path))
+        && supported_document(Path::new(path))
         && Path::new(path)
             .components()
             .all(|part| matches!(part, Component::Normal(_)))
@@ -138,7 +144,7 @@ fn valid_session_paths(record: &SessionRecord) -> Result<(), String> {
     let mut unique = std::collections::HashSet::new();
     for path in &record.tabs {
         if !safe_session_tab(path) {
-            return Err("Session contains an invalid Markdown path.".into());
+            return Err("Session contains an invalid document path.".into());
         }
         if !unique.insert(path) {
             return Err("Session contains duplicate document paths.".into());
@@ -366,9 +372,13 @@ fn restore_workspace(path: String, state: State<'_, Workspace>) -> Result<String
 fn list_directory(path: String, state: State<'_, Workspace>) -> Result<Vec<Entry>, String> {
     let guard = state.0.lock().map_err(err)?;
     let root = guard.as_ref().ok_or("Open a workspace first.")?;
-    list_entries(root, &path)
+    list_entries(root, &path, supported_document)
 }
-fn list_entries(root: &Path, path: &str) -> Result<Vec<Entry>, String> {
+fn list_entries(
+    root: &Path,
+    path: &str,
+    accepts_file: fn(&Path) -> bool,
+) -> Result<Vec<Entry>, String> {
     let directory = resolve(root, &path)?;
     let mut entries = Vec::new();
     for entry in fs::read_dir(directory).map_err(err)? {
@@ -381,7 +391,7 @@ fn list_entries(root: &Path, path: &str) -> Result<Vec<Entry>, String> {
         {
             continue;
         }
-        if kind.is_dir() || (kind.is_file() && markdown(&entry.path())) {
+        if kind.is_dir() || (kind.is_file() && accepts_file(&entry.path())) {
             entries.push(Entry {
                 name,
                 path: entry
@@ -588,8 +598,12 @@ mod tests {
         let path = dir.path().join("config/session.json");
         let record = SessionRecord {
             workspace: "/tmp/specspace-test".into(),
-            tabs: vec!["a.md".into(), "nested/b.markdown".into()],
-            active: Some(1),
+            tabs: vec![
+                "a.md".into(),
+                "nested/b.markdown".into(),
+                "architecture.DSL".into(),
+            ],
+            active: Some(2),
         };
         write_session(&path, &record).unwrap();
         assert_eq!(
@@ -636,6 +650,49 @@ mod tests {
         assert!(read_document(&root, "binary.md").is_err());
         fs::write(root.join("secret.txt"), "secret").unwrap();
         assert!(read_document(&root, "secret.txt").is_err());
+    }
+    #[test]
+    fn dsl_documents_use_workspace_protections_without_entering_connections() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        let name = "architecture.DSL";
+        let path = root.join(name);
+        let source = "\u{feff}// Preserve this comment\r\nworkspace {\r\n}";
+        fs::write(&path, source).unwrap();
+        fs::write(root.join("notes.md"), "# Notes").unwrap();
+        let entries = list_entries(&root, "", supported_document).unwrap();
+        assert!(entries.iter().any(|entry| entry.path == name));
+        let snapshot = serde_json::to_value(connections::scan(&root).unwrap()).unwrap();
+        assert_eq!(snapshot["documents"].as_array().unwrap().len(), 1);
+        assert_eq!(snapshot["documents"][0]["path"], "notes.md");
+        assert_eq!(
+            connections::check_target(&root, name.into()).status,
+            "excluded"
+        );
+        assert!(create_document(&root, &root.join("new.dsl")).is_err());
+
+        let document = read_document(&root, name).unwrap();
+        save_document(&root, name, &document.content, &document.revision).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), source.as_bytes());
+        fs::write(&path, "External edit").unwrap();
+        assert!(save_document(&root, name, "Pending edit", &document.revision).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "External edit");
+
+        assert!(read_document(&root, "../architecture.DSL").is_err());
+        fs::write(&path, [0xff]).unwrap();
+        assert!(read_document(&root, name).is_err());
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_len(MAX_BYTES + 1)
+            .unwrap();
+        assert!(read_document(&root, name).is_err());
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&path, root.join("linked.dsl")).unwrap();
+            assert!(read_document(&root, "linked.dsl").is_err());
+        }
     }
     #[cfg(unix)]
     #[test]

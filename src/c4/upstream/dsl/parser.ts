@@ -1,0 +1,1022 @@
+// Structurizr DSL Parser — converts a token stream into a Workspace model.
+// Produces meaningful errors with line/column positions.
+
+import type {
+  Workspace,
+  WorkspaceDirective,
+  PropertyDeclaration,
+  PropertyDirective,
+  PropertyLayout,
+  Model,
+  View,
+  ElementInView,
+} from '../model';
+import { lex } from './lexer';
+import type { Token, TokenType } from './lexer';
+import { parseViewsBody } from './parser-views';
+import { parseModelBody } from './parser-model';
+import {
+  hierarchyGuard,
+  wildcardElements,
+  withDeploymentDescendants,
+} from './wildcard';
+
+// ─── Public Types ────────────────────────────────────────────────────
+
+export interface ParseError {
+  message: string;
+  line: number;
+  column: number;
+}
+
+export interface ParseResult {
+  workspace: Workspace;
+  errors: ParseError[];
+  /** The input was recognised as saved by a pre-TEA-163 c4hero and its
+   *  `\\` / `\t` escapes were decoded (TEA-167). Saving migrates it. */
+  legacyEscapes: boolean;
+  /** Source line (1-based) where each element / relationship / group /
+   *  deployment environment id was declared. Lets a caller that flattened
+   *  `!include`s map ids back to their file (TEA-325 B). */
+  declarationLines: Map<string, number>;
+  /** Same for views, keyed by the View object (keys are assigned late). */
+  viewLines: Map<View, number>;
+  /** Source line of each `workspace.directives` entry, parallel array. */
+  directiveLines: number[];
+  /** Source line per style object and of the `themes` line. */
+  styleLines: Map<object, number>;
+  themesLine: number | undefined;
+  /** Source line of each property declaration and properties-block
+   *  directive (workspace, model, element and relationship blocks). */
+  propertyLines: Map<PropertyDeclaration | PropertyDirective, number>;
+  /** Non-fatal notes: the model loaded, but something was preserved rather
+   *  than understood (e.g. an unresolved `!include`). */
+  warnings: ParseError[];
+}
+
+// ─── ID Generation ───────────────────────────────────────────────────
+
+let globalIdCounter = 0;
+
+export function nextId(): string {
+  globalIdCounter++;
+  return `p${globalIdCounter}`;
+}
+
+// ─── Parser Implementation ──────────────────────────────────────────
+
+export const MAX_DEPTH = 50;
+
+/**
+ * Store a parsed user property. defineProperty, not assignment: a
+ * "__proto__" key would otherwise set the object's prototype instead of
+ * storing the property. Every properties-block parser must use this.
+ */
+export function setUserProperty(
+  props: Record<string, string>,
+  key: string,
+  value: string,
+): void {
+  Object.defineProperty(props, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+}
+
+/**
+ * Read the entries of a `properties { }` block, stopping at its closing brace.
+ * Keys and values may be quoted strings or bare words, as in Structurizr.
+ * Every properties-block parser goes through this so the token rules cannot
+ * drift apart. A `!` line inside the block goes to `onDirective`, which is
+ * required so no caller can drop one unnoticed; a key with no value goes to
+ * `onMissingValue`, or is skipped without one.
+ */
+export function readPropertyEntries(
+  p: ContextAwareParser,
+  onEntry: (key: string, value: string, token: Token) => void,
+  opts: {
+    onDirective: (token: Token) => void;
+    onMissingValue?: (key: string, token: Token) => void;
+  },
+): void {
+  const isBarePart = (t: Token) =>
+    t.type === 'IDENTIFIER' ||
+    t.type === 'NUMBER' ||
+    t.type === 'DOT' ||
+    t.type === 'EQUALS' ||
+    t.type === 'STAR' ||
+    t.type === 'ARROW' ||
+    (t.type === 'KEYWORD' && !t.value.startsWith('!'));
+  // The lexer splits qualified refs and numbers for other DSL contexts.
+  // Here contiguous bare tokens form one property word; whitespace separates
+  // the key from its value. Quoted strings are already decoded by the lexer.
+  const readWord = (): string | undefined => {
+    if (p.peekType() === 'STRING') return p.advance().value;
+    if (!isBarePart(p.peek())) return undefined;
+    let previous = p.advance();
+    let value = previous.value;
+    while (
+      isBarePart(p.peek()) &&
+      p.peek().line === previous.line &&
+      p.peek().column === previous.column + previous.value.length
+    ) {
+      previous = p.advance();
+      value += previous.value;
+    }
+    return value;
+  };
+  while (!p.check('RBRACE') && p.peekType() !== 'EOF') {
+    p.skipNewlines();
+    if (p.check('RBRACE') || p.peekType() === 'EOF') break;
+    const token = p.peek();
+    if (token.type === 'COMMENT') {
+      p.advance();
+      continue;
+    }
+    if (token.type === 'KEYWORD' && token.value.startsWith('!')) {
+      p.advance();
+      opts.onDirective(token);
+      p.skipToNextLine();
+      continue;
+    }
+    const key = readWord();
+    if (key === undefined) {
+      p.advance();
+      continue;
+    }
+    const value = readWord();
+    if (value !== undefined) onEntry(key, value, token);
+    else opts.onMissingValue?.(key, token);
+  }
+}
+
+/** Read and accumulate every properties block on a holder. Keep the layout
+ * on the model only once a directive appears, including earlier plain blocks. */
+export function readPropertyBlock(
+  p: ContextAwareParser,
+  holder: { propertyLayout?: PropertyLayout },
+  onEntry: (key: string, value: string) => void,
+): void {
+  let pending = p.propertyLayouts.get(holder);
+  if (!pending) {
+    pending = { layout: { declarations: [], directives: [] }, lines: [] };
+    p.propertyLayouts.set(holder, pending);
+  }
+  const { layout, lines } = pending;
+  readPropertyEntries(
+    p,
+    (key, value, token) => {
+      onEntry(key, value);
+      const declaration: PropertyDeclaration = {
+        key,
+        value,
+        slot: layout.directives.length,
+        sourceLine: token.line,
+        sourceColumn: token.column,
+      };
+      layout.declarations.push(declaration);
+      lines.push([declaration, token.line]);
+    },
+    {
+      onDirective: (token) => {
+        const directive: PropertyDirective = { raw: token.value.trim() };
+        layout.directives.push(directive);
+        lines.push([directive, token.line]);
+      },
+    },
+  );
+  if (layout.directives.length === 0) return;
+  holder.propertyLayout = layout;
+  for (const [item, line] of lines) p.propertyLines.set(item, line);
+  lines.length = 0;
+}
+
+export class ContextAwareParser {
+  tokens: Token[];
+  pos = 0;
+  errors: ParseError[] = [];
+  warnings: ParseError[] = [];
+  /** Preprocessor lines captured verbatim, in source order (TEA-325). */
+  directives: WorkspaceDirective[] = [];
+  declarationLines = new Map<string, number>();
+  viewLines = new Map<View, number>();
+  /** Source line of each entry in `directives`, parallel array. */
+  directiveLines: number[] = [];
+  /** Source line per parsed style object and of the `themes` line. */
+  styleLines = new Map<object, number>();
+  themesLine: number | undefined;
+  /** See ParseResult.propertyLines. */
+  propertyLines = new Map<PropertyDeclaration | PropertyDirective, number>();
+  /** Parse-only history: plain blocks may precede a block with directives. */
+  propertyLayouts = new WeakMap<
+    object,
+    {
+      layout: PropertyLayout;
+      lines: [PropertyDeclaration | PropertyDirective, number][];
+    }
+  >();
+  /** Last element / environment / group declared in the model block being
+   *  parsed — the anchor a following `!` directive is re-emitted after.
+   *  Reset on entering a group body (see parseModelBody). */
+  lastModelDeclId: string | undefined;
+  /** Group body currently being parsed, for directive placement. */
+  currentGroupId: string | undefined;
+  /** Set when a bare `status` / `owner` / `location` / `lineStyle` /
+   *  `interactionStyle` keyword was consumed in an element or relationship
+   *  body. Only the pre-TEA-163 c4hero serializer wrote those lines (real
+   *  Structurizr rejects them), so this is the sound "saved by an old
+   *  c4hero" signal — and unlike a text scan it cannot be fooled by the same
+   *  word used as a property key or inside a string (TEA-167). */
+  sawLegacyKeyword = false;
+
+  /** Line of the most recently consumed token — the declaration line for
+   *  whatever was just parsed. */
+  lastLine(): number {
+    const t = this.tokens[this.pos - 1] ?? this.tokens[this.pos];
+    return t?.line ?? 1;
+  }
+  depth = 0;
+
+  // Variable name <-> element id mappings
+  varToId = new Map<string, string>();
+  nameToId = new Map<string, string>();
+  elementsById = new Map<string, { name: string; type: string }>();
+  // Qualified (hierarchical) paths — `mpng.gatewayApi`,
+  // `pathways.navigatorApi.jwksController` — to element id.
+  qualifiedToId = new Map<string, string>();
+
+  // Every id handed out so far. The same variable name may legally appear in
+  // several scopes when identifiers are hierarchical, so ids need dedup.
+  usedIds = new Set<string>();
+
+  /** Set by `!identifiers hierarchical`. Refs are resolved qualified-first
+   *  either way; the flag records the DSL's declared intent. */
+  hierarchicalIdentifiers = false;
+
+  relCounter = 0;
+
+  // Elements named by an `include` line of their own (not `*`, not an
+  // expression), kept on `include *` views so a save writes them back (#230)
+  viewExplicitIncludes = new Map<View, string[]>();
+
+  noteExplicitInclude(view: View, id: string): void {
+    const ids = this.viewExplicitIncludes.get(view) ?? [];
+    if (!ids.includes(id)) ids.push(id);
+    this.viewExplicitIncludes.set(view, ids);
+  }
+
+  // Each element `exclude` with the number of include entries before it:
+  // statements apply in order, so a later `include` brings an element back
+  viewExcludeOrder = new Map<View, { id: string; at: number }[]>();
+
+  noteExclude(view: View, id: string): void {
+    const excludes = this.viewExcludeOrder.get(view) ?? [];
+    excludes.push({ id, at: view.elements.length });
+    this.viewExcludeOrder.set(view, excludes);
+  }
+
+  constructor(tokens: Token[]) {
+    this.tokens = tokens;
+  }
+
+  // ─── Token Navigation ────────────────────────────────────────────
+
+  peek(): Token {
+    return this.tokens[this.pos];
+  }
+
+  peekType(): TokenType {
+    return this.tokens[this.pos].type;
+  }
+
+  peekValue(): string {
+    return this.tokens[this.pos].value;
+  }
+
+  advance(): Token {
+    const token = this.tokens[this.pos];
+    this.pos++;
+    return token;
+  }
+
+  expect(type: TokenType, expectedValue?: string): Token {
+    const token = this.peek();
+    if (
+      token.type !== type ||
+      (expectedValue !== undefined && token.value !== expectedValue)
+    ) {
+      this.addError(
+        `Expected ${type}${expectedValue ? ` '${expectedValue}'` : ''}, got ${token.type} '${token.value}'`,
+        token,
+      );
+      return token;
+    }
+    return this.advance();
+  }
+
+  match(type: TokenType, value?: string): boolean {
+    const token = this.peek();
+    if (token.type === type && (value === undefined || token.value === value)) {
+      this.advance();
+      return true;
+    }
+    return false;
+  }
+
+  check(type: TokenType, value?: string): boolean {
+    const token = this.peek();
+    return (
+      token.type === type && (value === undefined || token.value === value)
+    );
+  }
+
+  skipNewlines(): void {
+    while (this.peekType() === 'NEWLINE' || this.peekType() === 'COMMENT') {
+      this.advance();
+    }
+  }
+
+  skipToNextLine(): void {
+    while (this.peekType() !== 'NEWLINE' && this.peekType() !== 'EOF') {
+      this.advance();
+    }
+    if (this.peekType() === 'NEWLINE') {
+      this.advance();
+    }
+  }
+
+  addError(message: string, token: Token): void {
+    this.errors.push({ message, line: token.line, column: token.column });
+  }
+
+  /** A non-fatal note about the parse — the file still loads, but something
+   *  about it was preserved-but-unresolved or normalized on the way in. The
+   *  code pane surfaces these below the editor. */
+  addWarning(message: string, token: Token): void {
+    this.warnings.push({ message, line: token.line, column: token.column });
+  }
+
+  skipBraceBlock(): void {
+    if (!this.match('LBRACE')) return;
+    let depth = 1;
+    while (depth > 0 && this.peekType() !== 'EOF') {
+      if (this.peekType() === 'LBRACE') depth++;
+      if (this.peekType() === 'RBRACE') depth--;
+      if (depth > 0) this.advance();
+    }
+    if (this.peekType() === 'RBRACE') this.advance();
+  }
+
+  /** Consume inline args (until newline/EOF/LBRACE), then skip any following brace
+   *  block. Used to gracefully ignore unknown keywords/identifiers in element bodies
+   *  without mistakenly consuming the parent's closing `}`. */
+  skipUnknownDirective(): void {
+    this.addWarning(
+      'Unsupported syntax was skipped; this architecture model may be incomplete.',
+      this.peek(),
+    );
+    while (
+      this.peekType() !== 'NEWLINE' &&
+      this.peekType() !== 'EOF' &&
+      !this.check('LBRACE')
+    ) {
+      this.advance();
+    }
+    if (this.peekType() === 'NEWLINE') this.advance();
+    this.skipNewlines();
+    if (this.check('LBRACE')) this.skipBraceBlock();
+  }
+
+  // ─── Registration ────────────────────────────────────────────────
+
+  /**
+   * Pick a unique element id for a declaration. The DSL variable name is used
+   * verbatim when it's still free, so ids survive a serialize → parse
+   * roundtrip. When the same variable name is reused in another scope (legal
+   * with hierarchical identifiers — `ctk.gatewayApi` and `mpng.gatewayApi`
+   * both declare `gatewayApi`), fall back to the qualified path with dots
+   * replaced by underscores so the id stays a valid DSL identifier.
+   */
+  allocateId(varName: string | undefined, parentPath?: string): string {
+    if (!varName) {
+      let generated = nextId();
+      while (this.usedIds.has(generated)) generated = nextId();
+      this.usedIds.add(generated);
+      return generated;
+    }
+    if (!this.usedIds.has(varName)) {
+      this.usedIds.add(varName);
+      return varName;
+    }
+    const base = (parentPath ? `${parentPath}.${varName}` : varName).replace(
+      /\./g,
+      '_',
+    );
+    let candidate = base;
+    let suffix = 2;
+    while (this.usedIds.has(candidate)) candidate = `${base}_${suffix++}`;
+    this.usedIds.add(candidate);
+    return candidate;
+  }
+
+  /**
+   * Record an element under every name it can be referenced by, and return
+   * its own qualified path so children can build theirs.
+   *
+   * `parentPath` is the qualified path of the enclosing element (undefined at
+   * the top level). A container inside `mpng` is registered as both the bare
+   * `gatewayApi` and the qualified `mpng.gatewayApi`; bare names are ambiguous
+   * across scopes, which is why resolveRef() prefers the qualified match.
+   */
+  registerElement(
+    id: string,
+    name: string,
+    _type: string,
+    varName?: string,
+    parentPath?: string,
+  ): string {
+    this.elementsById.set(id, { name, type: _type });
+    if (!this.declarationLines.has(id))
+      this.declarationLines.set(id, this.lastLine());
+    this.nameToId.set(name, id);
+    if (varName) {
+      this.varToId.set(varName, id);
+    }
+    const segment = varName ?? name;
+    const path = parentPath ? `${parentPath}.${segment}` : segment;
+    if (parentPath) {
+      this.qualifiedToId.set(path, id);
+      // Nested elements may also be referenced by display name
+      // (`mpng.Sequencer API`) when they have no variable name.
+      const namePath = `${parentPath}.${name}`;
+      if (!this.qualifiedToId.has(namePath))
+        this.qualifiedToId.set(namePath, id);
+    }
+    return path;
+  }
+
+  /** Register a deployment-family element (environment, node, instance).
+   *  Unlike registerElement this never maps the display name, because
+   *  deployment names routinely duplicate model element names (an instance
+   *  shares its container's name) and must not shadow them in resolveRef. */
+  registerDeploymentElement(
+    id: string,
+    name: string,
+    _type: string,
+    varName?: string,
+  ): void {
+    this.elementsById.set(id, { name, type: _type });
+    if (varName) {
+      this.varToId.set(varName, id);
+    }
+  }
+
+  resolveRef(ref: string): string | undefined {
+    // Qualified paths win: the same bare variable name may be declared in
+    // several scopes, in which case varToId only remembers the last one.
+    const qualified = this.qualifiedToId.get(ref);
+    if (qualified !== undefined) return qualified;
+    if (this.varToId.has(ref)) return this.varToId.get(ref);
+    if (this.nameToId.has(ref)) return this.nameToId.get(ref);
+    if (this.elementsById.has(ref)) return ref;
+    return undefined;
+  }
+
+  /** Record the effect of a preprocessor directive. The lexer folds the whole
+   *  line into the keyword's value, so `!identifiers hierarchical` arrives as
+   *  a single token. c4hero always registers bare *and* qualified names, so
+   *  the flag only records intent — resolution prefers qualified regardless. */
+  noteDirective(
+    value: string,
+    scope: WorkspaceDirective['scope'] = 'workspace',
+    token?: Token,
+  ): void {
+    if (/^!identifiers\b/.test(value) && /\bhierarchical\b/.test(value)) {
+      this.hierarchicalIdentifiers = true;
+    }
+    // Preserve every directive byte-for-byte (minus surrounding whitespace)
+    // so a save never deletes a line the user wrote. Includes are kept but
+    // their content is not loaded here — say so, as a warning not an error.
+    //
+    // `!identifiers` is the one exception: it is a parse *mode*, not data.
+    // c4hero registers both flat and qualified names on read and always
+    // serializes flat identifiers, so re-emitting `!identifiers hierarchical`
+    // would make Structurizr reject the very references we write.
+    const raw = value.trim();
+    if (/^!identifiers\b/.test(raw)) return;
+    const directive: WorkspaceDirective = { scope, raw };
+    if (scope === 'model' || scope === 'modelProperties') {
+      if (this.currentGroupId) directive.groupId = this.currentGroupId;
+      if (this.lastModelDeclId) directive.after = this.lastModelDeclId;
+    }
+    this.directives.push(directive);
+    this.directiveLines.push((token ?? this.peek()).line);
+    if (/^!include\b/.test(raw)) {
+      this.addWarning(
+        `${raw} is preserved but not resolved — included content is not shown`,
+        token ?? this.peek(),
+      );
+    }
+  }
+
+  // ─── Qualified (hierarchical) references ─────────────────────────
+
+  /** True when the token at `index` can be a segment of a qualified path.
+   *  Keywords are allowed because element variables may be named after them
+   *  (`spine.status`, `atk.default`). */
+  private isRefSegment(index: number): boolean {
+    const t = this.tokens[index];
+    return t !== undefined && (t.type === 'IDENTIFIER' || t.type === 'KEYWORD');
+  }
+
+  /** True when `DOT IDENT` at `dotIndex` is the head of a Structurizr
+   *  expression (`element.type==X`, `element.parent==Y`) rather than a
+   *  qualified path segment. */
+  private isExpressionTail(dotIndex: number): boolean {
+    return (
+      this.tokens[dotIndex + 2]?.type === 'EQUALS' &&
+      this.tokens[dotIndex + 3]?.type === 'EQUALS'
+    );
+  }
+
+  /**
+   * Consume an element reference — `IDENT (DOT IDENT)*` — and return the
+   * joined path plus the token it starts at (for error positions).
+   * Returns null when the current token cannot start a reference.
+   *
+   * `element.type==` / `element.parent==` expressions are left alone: the
+   * `==` lookahead stops the join, so `include` / `exclude` still hand those
+   * to the expression parser.
+   */
+  readQualifiedRef(options?: {
+    allowString?: boolean;
+  }): { ref: string; token: Token } | null {
+    const start = this.peek();
+    const startsRef =
+      start.type === 'IDENTIFIER' ||
+      start.type === 'KEYWORD' ||
+      (options?.allowString === true && start.type === 'STRING');
+    if (!startsRef) return null;
+    this.advance();
+    let ref = start.value;
+    while (
+      this.check('DOT') &&
+      this.isRefSegment(this.pos + 1) &&
+      !this.isExpressionTail(this.pos)
+    ) {
+      this.advance(); // consume DOT
+      ref += '.' + this.advance().value;
+    }
+    return { ref, token: start };
+  }
+
+  /** True when the statement at the current position is a relationship —
+   *  `ref (.ref)* ->`. Needed because a dotted source puts a DOT, not an
+   *  ARROW, immediately after the first identifier. Newlines before the arrow
+   *  are tolerated, as they were before qualified refs existed. */
+  looksLikeRelationship(): boolean {
+    if (!this.isRefSegment(this.pos)) return false;
+    let i = this.pos + 1;
+    while (this.tokens[i]?.type === 'DOT' && this.isRefSegment(i + 1)) i += 2;
+    while (
+      this.tokens[i]?.type === 'NEWLINE' ||
+      this.tokens[i]?.type === 'COMMENT'
+    )
+      i++;
+    return this.tokens[i]?.type === 'ARROW';
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────
+
+  readOptionalString(): string | undefined {
+    if (this.check('STRING')) return this.advance().value;
+    return undefined;
+  }
+
+  readString(): string {
+    if (this.check('STRING')) return this.advance().value;
+    this.addError(
+      `Expected string, got ${this.peekType()} '${this.peekValue()}'`,
+      this.peek(),
+    );
+    return '';
+  }
+
+  /** A view-header slot (key, deployment environment): a string or a bare
+   *  word. Structurizr has no reserved words there, so a word c4hero lexes
+   *  as a KEYWORD counts too — `deployment * "Production" deployment { … }`
+   *  is keyed `deployment`. Reading it as "no key" split the view in two
+   *  and saved DSL Structurizr rejects (#232). */
+  readOptionalStringOrIdentifier(): string | undefined {
+    if (this.check('STRING')) return this.advance().value;
+    if (this.check('IDENTIFIER') || this.check('KEYWORD'))
+      return this.advance().value;
+    return undefined;
+  }
+
+  buildTags(
+    defaultTag1: string,
+    defaultTag2: string,
+    extraTags?: string,
+  ): string[] {
+    const tags = [defaultTag1, defaultTag2];
+    if (extraTags) {
+      for (const t of extraTags.split(',')) {
+        const trimmed = t.trim();
+        if (trimmed && !tags.includes(trimmed)) tags.push(trimmed);
+      }
+    }
+    return tags;
+  }
+
+  readStyleValue(): string | undefined {
+    if (this.check('STRING')) return this.advance().value;
+    if (this.check('NUMBER')) return this.advance().value;
+    if (this.check('IDENTIFIER') || this.check('KEYWORD'))
+      return this.advance().value;
+    return undefined;
+  }
+
+  // ─── Main Parse ──────────────────────────────────────────────────
+
+  /** The document-level decision (`legacyEscapes`) belongs to the outer
+   *  parse(), which owns the lexer; this method never sets it. */
+  parse(): Omit<ParseResult, 'legacyEscapes'> {
+    const workspace = this.createEmptyWorkspace();
+
+    this.skipNewlines();
+
+    if (this.check('KEYWORD', 'workspace')) {
+      this.advance();
+
+      // Check for 'extends'
+      if (
+        this.check('KEYWORD', 'extends') ||
+        this.check('IDENTIFIER', 'extends')
+      ) {
+        this.skipToNextLine();
+        this.skipBraceBlock();
+        return {
+          workspace,
+          errors: this.errors,
+          warnings: this.warnings,
+          declarationLines: this.declarationLines,
+          viewLines: this.viewLines,
+          directiveLines: this.directiveLines,
+          styleLines: this.styleLines,
+          themesLine: this.themesLine,
+          propertyLines: this.propertyLines,
+        };
+      }
+
+      workspace.name = this.readOptionalString() || undefined;
+      workspace.description = this.readOptionalString() || undefined;
+      this.skipNewlines();
+
+      if (this.match('LBRACE')) {
+        this.parseWorkspaceBody(workspace);
+        this.skipNewlines();
+        this.match('RBRACE');
+      }
+    }
+
+    if (this.directives.length > 0) workspace.directives = this.directives;
+    return {
+      workspace,
+      errors: this.errors,
+      warnings: this.warnings,
+      declarationLines: this.declarationLines,
+      viewLines: this.viewLines,
+      directiveLines: this.directiveLines,
+      styleLines: this.styleLines,
+      themesLine: this.themesLine,
+      propertyLines: this.propertyLines,
+    };
+  }
+
+  private createEmptyWorkspace(): Workspace {
+    return {
+      name: undefined,
+      description: undefined,
+      model: {
+        people: [],
+        softwareSystems: [],
+        relationships: [],
+        groups: [],
+        deploymentEnvironments: [],
+      },
+      views: {
+        systemLandscapeViews: [],
+        systemContextViews: [],
+        containerViews: [],
+        componentViews: [],
+        dynamicViews: [],
+        deploymentViews: [],
+        configuration: {
+          styles: { elements: [], relationships: [] },
+        },
+      },
+    };
+  }
+
+  private parseWorkspaceBody(workspace: Workspace): void {
+    while (!this.check('RBRACE') && this.peekType() !== 'EOF') {
+      this.skipNewlines();
+      if (this.check('RBRACE') || this.peekType() === 'EOF') break;
+
+      const token = this.peek();
+
+      if (token.type === 'KEYWORD') {
+        const kw = token.value.toLowerCase();
+
+        if (kw === 'model') {
+          this.advance();
+          this.skipNewlines();
+          if (this.match('LBRACE')) {
+            parseModelBody(this, workspace.model);
+            this.skipNewlines();
+            this.expect('RBRACE');
+          }
+        } else if (kw === 'views') {
+          this.advance();
+          this.skipNewlines();
+          if (this.match('LBRACE')) {
+            parseViewsBody(this, workspace.views, workspace.model);
+            this.skipNewlines();
+            this.expect('RBRACE');
+          }
+        } else if (token.value.startsWith('!')) {
+          // Preprocessor directive — consume keyword + inline args on this line
+          this.noteDirective(token.value, 'workspace', token);
+          this.advance();
+          this.skipToNextLine();
+        } else if (kw === 'configuration') {
+          this.advance();
+          this.skipNewlines();
+          if (this.match('LBRACE')) {
+            this.parseWorkspaceConfiguration(workspace);
+            this.skipNewlines();
+            this.expect('RBRACE');
+          }
+        } else if (kw === 'properties') {
+          this.advance();
+          this.skipNewlines();
+          if (this.match('LBRACE')) {
+            this.parseScopedProperties(workspace, 'workspaceProperties');
+            this.skipNewlines();
+            this.expect('RBRACE');
+          }
+        } else {
+          // Unknown workspace-level keyword (e.g. branding, terminology, !identifiers).
+          this.addWarning(
+            `Unsupported workspace syntax '${token.value}' was skipped; this architecture model may be incomplete.`,
+            token,
+          );
+          // Consume keyword + any inline string args, then skip a brace block if present.
+          this.advance();
+          while (
+            this.check('STRING') ||
+            this.check('IDENTIFIER') ||
+            this.check('NUMBER')
+          )
+            this.advance();
+          this.skipNewlines();
+          if (this.check('LBRACE')) this.skipBraceBlock();
+        }
+      } else {
+        this.advance();
+      }
+    }
+  }
+
+  /** Parse a workspace- or model-level `properties { }` block into
+   *  `holder.properties`, recording each line's position among the block
+   *  kind's directives (see PropertyDeclaration.slot). */
+  parseScopedProperties(
+    holder: Workspace | Model,
+    scope: 'workspaceProperties' | 'modelProperties',
+  ): void {
+    const slotScopes: WorkspaceDirective['scope'][] =
+      scope === 'workspaceProperties' ? ['workspace', scope] : ['model', scope];
+    readPropertyEntries(
+      this,
+      (key, value, token) => {
+        holder.properties ??= {};
+        setUserProperty(holder.properties, key, value);
+        const declaration: PropertyDeclaration = {
+          key,
+          value,
+          slot: this.directives.filter((d) => slotScopes.includes(d.scope))
+            .length,
+          sourceLine: token.line,
+          sourceColumn: token.column,
+        };
+        (holder.propertyDeclarations ??= []).push(declaration);
+        this.propertyLines.set(declaration, token.line);
+      },
+      {
+        onDirective: (token) => this.noteDirective(token.value, scope, token),
+        onMissingValue: (key, token) =>
+          this.addError(`Expected a value for property '${key}'`, token),
+      },
+    );
+  }
+
+  private parseWorkspaceConfiguration(workspace: Workspace): void {
+    while (!this.check('RBRACE') && this.peekType() !== 'EOF') {
+      this.skipNewlines();
+      if (this.check('RBRACE') || this.peekType() === 'EOF') break;
+      const token = this.peek();
+      // 'scope' is not a reserved keyword in the lexer, so it comes through as IDENTIFIER.
+      if (
+        (token.type === 'IDENTIFIER' || token.type === 'KEYWORD') &&
+        token.value.toLowerCase() === 'scope'
+      ) {
+        this.advance();
+        const val = this.peek();
+        if (val.type === 'IDENTIFIER' || val.type === 'KEYWORD') {
+          this.advance();
+          const s = val.value.toLowerCase();
+          if (s === 'softwaresystem') workspace.scope = 'softwaresystem';
+          else if (s === 'landscape') workspace.scope = 'landscape';
+          else if (s === 'none') workspace.scope = 'none';
+          else {
+            this.addError(
+              `Unknown scope value '${val.value}' — expected 'softwareSystem', 'landscape', or 'none'`,
+              val,
+            );
+            workspace.scope = 'none';
+          }
+        }
+      } else {
+        this.advance();
+        // Unknown configuration properties may have a nested brace block (e.g. users { ... })
+        // Stop before LBRACE so inline `{` is not consumed by the line-skip.
+        this.skipUnknownDirective();
+      }
+    }
+  }
+}
+
+// ─── Public API ─────────────────────────────────────────────────────
+
+export function parse(input: string): ParseResult {
+  // Files saved by c4hero before TEA-163 used JSON-style escapes (`\\`,
+  // `\t`). Parse with the Structurizr rule first; if the parser met one of
+  // the element-body keywords only that old serializer wrote, the file is
+  // legacy — re-lex and re-parse with the old rule. (Re-decoding tokens
+  // isn't enough: the two rules place string boundaries differently.)
+  globalIdCounter = 0;
+  let lexResult = lex(input);
+  let parser = new ContextAwareParser(lexResult.tokens);
+  let result = parser.parse();
+  const legacyEscapes = parser.sawLegacyKeyword;
+  if (legacyEscapes) {
+    globalIdCounter = 0; // Reset per parse call to avoid growing IDs across invocations
+    lexResult = lex(input, { legacyEscapes: true });
+    parser = new ContextAwareParser(lexResult.tokens);
+    result = parser.parse();
+  }
+
+  // Combine lexer and parser errors
+  const errors = [...lexResult.errors, ...result.errors];
+  const warnings = result.warnings;
+  // Under the modern rule a string body still containing `\\` or `\t` is
+  // the ambiguous case: legal Structurizr, but also what an old c4hero file
+  // with no keyword marker looks like. Surface it, don't guess.
+  const legacyLookingEscapes =
+    !legacyEscapes &&
+    lexResult.tokens.some(
+      (t) => t.type === 'STRING' && /\\\\|\\t/.test(t.value),
+    );
+  if (legacyEscapes) {
+    warnings.unshift({
+      message:
+        "Saved by an older c4hero: \\\\ and \\t escape sequences were converted. Saving writes the file in Structurizr's format.",
+      line: 1,
+      column: 1,
+    });
+  } else if (legacyLookingEscapes) {
+    warnings.unshift({
+      message:
+        'Strings contain \\\\ or \\t, which Structurizr reads literally (two backslashes; backslash + t). If this file was saved by c4hero before v0.3, those were escapes — check the affected values.',
+      line: 1,
+      column: 1,
+    });
+  }
+
+  // Implied instance relationships are NOT materialized here — the canvas
+  // derives them per deployment view via deriveInstanceRelationships(), so
+  // the model only ever holds relationships the user authored.
+  const ws = result.workspace;
+
+  // Post-process: populate view.relationships from model relationships.
+  // The DSL doesn't store relationship refs in views — Structurizr infers them.
+  // We do the same: for each view, include any model relationship whose source
+  // AND destination are both present in that view's element set.
+  // Dynamic views are excluded: their relationship list is an explicit,
+  // ordered interaction sequence built during parsing.
+  const allViews = [
+    ...ws.views.systemLandscapeViews,
+    ...ws.views.systemContextViews,
+    ...ws.views.containerViews,
+    ...ws.views.componentViews,
+    ...ws.views.deploymentViews,
+  ];
+  for (const view of allViews) {
+    // `include *` expands in place to every element appropriate for this
+    // view type, alongside any explicit `include` lines. The view keeps a
+    // flag rather than the `*`, so a save writes the wildcard back instead
+    // of freezing today's expansion into an id list (#230). The author's
+    // own include and exclude lines are kept too, so a save writes them
+    // back as written.
+    const wildcardAt = view.elements.findIndex((e) => e.id === '*');
+    const includeAll = wildcardAt >= 0;
+    // Structurizr ignores an `include` of the view's own scope (a
+    // container view's software system, a component view's container or
+    // its system), so it is left out here too: shown, it would sit next
+    // to its own containers or components and draw implied arrows
+    // Structurizr does not (#230).
+    const outOfScope = includeAll
+      ? hierarchyGuard(ws.model, view).isScope
+      : () => false;
+    if (includeAll) {
+      view.includeAll = true;
+      const included = (parser.viewExplicitIncludes.get(view) ?? []).filter(
+        (id) => !outOfScope(id),
+      );
+      if (included.length > 0) view.includedElementIds = included;
+    }
+    const expanded = includeAll ? wildcardElements(ws.model, view) : [];
+    // Statements apply in order, as in Structurizr: an `exclude` removes
+    // what the view holds so far (and everything on an excluded deployment
+    // node), and a later `include` brings an element back. A repeated
+    // element is kept once. Next to `include *`, an element whose parent or
+    // child is already in the view is skipped, as Structurizr does:
+    // `include api` before `include *` shows that container, not its
+    // software system.
+    let elements: ElementInView[] = [];
+    const seen = new Set<string>();
+    let guard = includeAll ? hierarchyGuard(ws.model, view) : undefined;
+    const excludes = parser.viewExcludeOrder.get(view) ?? [];
+    let nextExclude = 0;
+    const applyExcludes = (upTo: number) => {
+      const ids: string[] = [];
+      while (nextExclude < excludes.length && excludes[nextExclude].at <= upTo)
+        ids.push(excludes[nextExclude++].id);
+      if (ids.length === 0) return;
+      const gone = withDeploymentDescendants(ws.model, view, ids);
+      elements = elements.filter((e) => !gone.has(e.id));
+      for (const id of gone) seen.delete(id);
+      if (includeAll) guard = hierarchyGuard(ws.model, view, seen);
+    };
+    view.elements.forEach((entry, i) => {
+      applyExcludes(i);
+      for (const e of entry.id === '*' ? expanded : [entry]) {
+        if (seen.has(e.id) || outOfScope(e.id) || guard?.clashes(e.id))
+          continue;
+        elements.push(e);
+        seen.add(e.id);
+        guard?.add(e.id);
+      }
+    });
+    applyExcludes(Infinity);
+    if (includeAll) {
+      // Only an `exclude` after the wildcard can hide what it adds, and
+      // one a later `include` undoes hides nothing. Neither is kept, so
+      // a line that changes nothing here cannot start hiding an element
+      // after a later edit re-expands the view.
+      const hidden = new Set(
+        excludes
+          .filter((x) => x.at > wildcardAt && !seen.has(x.id))
+          .map((x) => x.id),
+      );
+      if (hidden.size > 0) view.excludedElementIds = [...hidden];
+    }
+    view.elements = elements;
+    const elementIds = seen;
+    view.relationships = ws.model.relationships
+      .filter(
+        (r) =>
+          elementIds.has(r.sourceId) &&
+          elementIds.has(r.destinationId) &&
+          !view.excludedRelationshipIds?.includes(r.id),
+      )
+      .map((r) => ({ id: r.id }));
+  }
+
+  return {
+    workspace: ws,
+    errors,
+    warnings,
+    legacyEscapes,
+    declarationLines: result.declarationLines,
+    viewLines: result.viewLines,
+    directiveLines: result.directiveLines,
+    styleLines: result.styleLines,
+    themesLine: result.themesLine,
+    propertyLines: result.propertyLines,
+  };
+}

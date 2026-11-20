@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
@@ -17,7 +25,12 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import type { RefObject } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  RefObject,
+} from 'react';
 import { DiagramFocusView } from './DiagramFocusView';
 import { Editor, type EditorHandle } from './Editor';
 import { Preview, type PreviewHandle } from './Preview';
@@ -25,6 +38,9 @@ import { extractOutline, type OutlineSection } from './outline';
 import { relativeLink } from './text';
 import { useConnections } from './useConnections';
 import { ConnectionsView } from './ConnectionsView';
+import { isArchitectureDocument } from './text';
+
+const ArchitectureExplorer = lazy(() => import('./c4/ArchitectureExplorer'));
 interface Entry {
   name: string;
   path: string;
@@ -49,6 +65,7 @@ interface LoadedSession {
   skipped: number;
 }
 type Choice = 'save' | 'discard' | 'cancel';
+type PaneMode = 'source' | 'split' | 'preview';
 const sample =
   '# A clearer space for your specifications\n\nOpen a local folder to start working. Your Markdown stays yours.\n\n## Built for technical thinking\n\n- Edit source without changing its format\n- Keep architecture and requirements side by side\n- Preview diagrams as you write\n\n```mermaid\nflowchart LR\n  A[Local files] --> B[Markdown editor]\n  B --> C[Live preview]\n```\n\n> Local files. Focused editing. No account required.\n';
 function BlueprintMark({ size = 20 }: { size?: number }) {
@@ -143,9 +160,15 @@ export function App() {
   const sessionWrite = useRef(Promise.resolve());
   const refreshConnections = useRef(connections.refresh);
   refreshConnections.current = connections.refresh;
-  const [mode, setMode] = useState<'source' | 'split' | 'preview'>('split');
+  const [mode, setMode] = useState<PaneMode>('split');
+  const [architectureMode, setArchitectureMode] = useState<PaneMode>('preview');
   const [compactLayout, setCompactLayout] = useState(false);
   const [sidebar, setSidebar] = useState(true);
+  const [explorerWidth, setExplorerWidth] = useState<number | null>(null);
+  const [sourceShare, setSourceShare] = useState(44);
+  const [resizing, setResizing] = useState<'explorer' | 'source' | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const documentPanesRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -171,10 +194,14 @@ export function App() {
   );
   const previewRef = useRef<PreviewHandle>(null);
   const selected = tabs.find((t) => t.path === active);
+  const architecture = isArchitectureDocument(active);
   const outline = useMemo(
-    () => (selected ? extractOutline(selected.content) : []),
-    [selected?.content],
+    () => (selected && !architecture ? extractOutline(selected.content) : []),
+    [architecture, selected?.content],
   );
+  useEffect(() => {
+    if (architecture) setShowOutline(false);
+  }, [architecture]);
   useEffect(() => {
     setFocusedDiagram(null);
   }, [
@@ -185,7 +212,84 @@ export function App() {
     showConnections,
     mode,
   ]);
-  const visibleMode = compactLayout && mode === 'split' ? 'preview' : mode;
+  const paneMode = architecture ? architectureMode : mode;
+  const visibleMode =
+    compactLayout && paneMode === 'split' ? 'preview' : paneMode;
+  const defaultExplorerWidth = compactLayout ? 210 : 248;
+  const currentExplorerWidth = explorerWidth ?? defaultExplorerWidth;
+  const stopResize = useCallback(() => setResizing(null), []);
+  useEffect(() => {
+    if (!resizing) return;
+    const stop = () => stopResize();
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
+    window.addEventListener('blur', stop);
+    window.addEventListener('resize', stop);
+    return () => {
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      window.removeEventListener('blur', stop);
+      window.removeEventListener('resize', stop);
+    };
+  }, [resizing, stopResize]);
+  const resizePanel = useCallback(
+    (kind: 'explorer' | 'source', event: ReactPointerEvent<HTMLDivElement>) => {
+      if (busy) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setResizing(kind);
+      const update = (clientX: number) => {
+        if (kind === 'explorer') {
+          const bounds = workspaceRef.current?.getBoundingClientRect();
+          if (!bounds) return;
+          setExplorerWidth(Math.max(180, Math.min(420, clientX - bounds.left)));
+        } else {
+          const bounds = documentPanesRef.current?.getBoundingClientRect();
+          if (!bounds || bounds.width <= 0) return;
+          const minimum = Math.min(280, bounds.width / 2);
+          const sourceWidth = Math.max(
+            minimum,
+            Math.min(bounds.width - minimum, clientX - bounds.left),
+          );
+          setSourceShare((sourceWidth / bounds.width) * 100);
+        }
+      };
+      update(event.clientX);
+      const move = (moveEvent: globalThis.PointerEvent) =>
+        update(moveEvent.clientX);
+      const end = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        stopResize();
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end, { once: true });
+      event.currentTarget.addEventListener('lostpointercapture', end, {
+        once: true,
+      });
+    },
+    [busy, stopResize],
+  );
+  const adjustSourceShare = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    setSourceShare((value) =>
+      Math.max(20, Math.min(80, value + (event.key === 'ArrowRight' ? 2 : -2))),
+    );
+  };
+  const adjustExplorerWidth = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    setExplorerWidth((value) =>
+      Math.max(
+        180,
+        Math.min(
+          420,
+          (value ?? defaultExplorerWidth) +
+            (event.key === 'ArrowRight' ? 12 : -12),
+        ),
+      ),
+    );
+  };
   function editorRefFor(path: string) {
     let callback = editorRefCallbacks.current.get(path);
     if (!callback) {
@@ -344,7 +448,7 @@ export function App() {
       ),
     );
     setStatus(`Saved ${tab.path}`);
-    await connections.refresh();
+    if (!isArchitectureDocument(tab.path)) await connections.refresh();
   }
   async function protect(list: Tab[]) {
     const changed = list.filter(dirty);
@@ -541,7 +645,7 @@ export function App() {
       ),
     );
     setStatus('Reloaded from disk');
-    await connections.refresh();
+    if (!isArchitectureDocument(active)) await connections.refresh();
   }
   const openFolderHandler = useRef(choose);
   openFolderHandler.current = choose;
@@ -771,9 +875,16 @@ export function App() {
           {showConnections ? 'Back to editor' : 'Connections'}
         </button>
       </header>
-      <div className="workspace" inert={busy}>
+      <div
+        ref={workspaceRef}
+        className={`workspace ${resizing ? 'is-resizing' : ''}`}
+        inert={busy}
+        style={
+          { '--explorer-width': `${currentExplorerWidth}px` } as CSSProperties
+        }
+      >
         {sidebar && (
-          <aside>
+          <aside style={{ width: `${currentExplorerWidth}px` }}>
             <div className="sidebar-heading">
               <span>WORKSPACE</span>
               <button
@@ -838,14 +949,14 @@ export function App() {
               {renderTree('')}
               {workspace && tree['']?.length === 0 && (
                 <p className="sidebar-note">
-                  No Markdown files yet. Add .md files to this folder, then
-                  refresh.
+                  No documents yet. Add Markdown or Structurizr DSL files to
+                  this folder, then refresh.
                 </p>
               )}
               {!workspace && (
                 <p className="sidebar-note">
-                  Open a folder of Markdown files to bring your project into
-                  focus.
+                  Open a folder of Markdown and Structurizr DSL files to browse
+                  your project.
                 </p>
               )}
             </nav>
@@ -855,6 +966,19 @@ export function App() {
               <small>Your files stay in your folder.</small>
             </div>
           </aside>
+        )}
+        {sidebar && (
+          <div
+            className="panel-resizer explorer-resizer"
+            role="separator"
+            tabIndex={0}
+            aria-label="Resize workspace explorer"
+            aria-valuemin={180}
+            aria-valuemax={420}
+            aria-valuenow={Math.round(currentExplorerWidth)}
+            onPointerDown={(event) => resizePanel('explorer', event)}
+            onKeyDown={adjustExplorerWidth}
+          />
         )}
         <main inert={busy}>
           <div className="tabbar">
@@ -932,32 +1056,49 @@ export function App() {
               <FileText size={15} />
               {selected ? selected.path : 'A space for clear thinking'}
             </div>
-            <button
-              ref={outlineButtonRef}
-              className={`outline-toggle ${showOutline ? 'active' : ''}`}
-              aria-label="Outline"
-              aria-expanded={showOutline}
-              aria-controls="document-outline"
-              disabled={!selected || busy}
-              onClick={() => setShowOutline((value) => !value)}
-            >
-              <ListTree size={15} />
-              Outline
-            </button>
+            {!architecture && (
+              <button
+                ref={outlineButtonRef}
+                className={`outline-toggle ${showOutline ? 'active' : ''}`}
+                aria-label="Outline"
+                aria-expanded={showOutline}
+                aria-controls="document-outline"
+                disabled={!selected || busy}
+                onClick={() => setShowOutline((value) => !value)}
+              >
+                <ListTree size={15} />
+                Outline
+              </button>
+            )}
             <div className="view-modes" aria-label="Editor mode">
               {(['source', 'split', 'preview'] as const)
                 .filter((item) => !compactLayout || item !== 'split')
                 .map((item) => (
                   <button
                     key={item}
-                    aria-pressed={mode === item}
-                    className={mode === item ? 'active' : ''}
-                    onClick={() => setMode(item)}
+                    aria-pressed={visibleMode === item}
+                    className={visibleMode === item ? 'active' : ''}
+                    onClick={() =>
+                      (architecture ? setArchitectureMode : setMode)(item)
+                    }
                   >
-                    {item[0].toUpperCase() + item.slice(1)}
+                    {architecture && item === 'preview'
+                      ? 'Architecture'
+                      : item[0].toUpperCase() + item.slice(1)}
                   </button>
                 ))}
             </div>
+            <button
+              className="reset-panel-sizes"
+              title="Reset panel sizes"
+              aria-label="Reset panel sizes"
+              onClick={() => {
+                setExplorerWidth(null);
+                setSourceShare(44);
+              }}
+            >
+              Reset layout
+            </button>
             <button
               title="Reload from disk"
               aria-label="Reload from disk"
@@ -986,8 +1127,8 @@ export function App() {
           {showConnections && (
             <ConnectionsView
               index={connections.index}
-              selected={active}
-              dirty={!!selected && dirty(selected)}
+              selected={architecture ? '' : active}
+              dirty={!architecture && !!selected && dirty(selected)}
               loading={connections.loading}
               error={connections.error}
               onRefresh={() => void perform(connections.refresh)}
@@ -997,10 +1138,20 @@ export function App() {
           )}
           <div className="editor-workspace" hidden={showConnections}>
             {selected ? (
-              <div className={`document-panes ${visibleMode}`}>
-                <section className="source-pane" aria-label="Markdown source">
+              <div
+                ref={documentPanesRef}
+                className={`document-panes ${visibleMode}`}
+                style={{ '--source-share': `${sourceShare}%` } as CSSProperties}
+              >
+                <section
+                  className="source-pane"
+                  aria-label={
+                    architecture ? 'Structurizr source' : 'Markdown source'
+                  }
+                >
                   <div className="pane-label">
-                    MARKDOWN <span>Source of truth</span>
+                    {architecture ? 'STRUCTURIZR DSL' : 'MARKDOWN'}{' '}
+                    <span>Source of truth</span>
                   </div>
                   {tabs.map((tab) => (
                     <div
@@ -1011,6 +1162,7 @@ export function App() {
                       <Editor
                         ref={editorRefFor(tab.path)}
                         content={tab.content}
+                        architecture={isArchitectureDocument(tab.path)}
                         canEdit={() => !lock.current}
                         onChange={(content) =>
                           setTabs((current) =>
@@ -1023,26 +1175,75 @@ export function App() {
                     </div>
                   ))}
                 </section>
-                <section className="preview-pane" aria-label="Markdown preview">
-                  <div className="pane-label">
-                    PREVIEW <span>Live</span>
-                  </div>
-                  <Preview
-                    ref={previewRef}
-                    content={selected.content}
-                    filename={selected.path.split('/').at(-1)}
-                    onExplore={(svg, title, nodeIds, edges) =>
-                      setFocusedDiagram({ svg, title, nodeIds, edges })
-                    }
-                    onLink={(href) => {
-                      const path = relativeLink(active, href);
-                      if (path) void perform(() => open(path));
-                      else
-                        setStatus(
-                          'Only workspace Markdown links are opened in this MVP.',
-                        );
-                    }}
+                {visibleMode === 'split' && !compactLayout && (
+                  <div
+                    className="panel-resizer source-resizer"
+                    role="separator"
+                    tabIndex={0}
+                    aria-label="Resize source and preview panels"
+                    aria-valuemin={20}
+                    aria-valuemax={80}
+                    aria-valuenow={Math.round(sourceShare)}
+                    onPointerDown={(event) => resizePanel('source', event)}
+                    onKeyDown={adjustSourceShare}
                   />
+                )}
+                <section
+                  className="preview-pane"
+                  aria-label={
+                    architecture ? 'Architecture preview' : 'Markdown preview'
+                  }
+                >
+                  <div className="pane-label">
+                    {architecture ? 'ARCHITECTURE' : 'PREVIEW'}{' '}
+                    <span>Live</span>
+                  </div>
+                  {!architecture && (
+                    <Preview
+                      ref={previewRef}
+                      content={selected.content}
+                      filename={selected.path.split('/').at(-1)}
+                      onExplore={(svg, title, nodeIds, edges) =>
+                        setFocusedDiagram({ svg, title, nodeIds, edges })
+                      }
+                      onLink={(href) => {
+                        const path = relativeLink(active, href);
+                        if (path) void perform(() => open(path));
+                        else
+                          setStatus(
+                            'Only workspace Markdown links are opened in this MVP.',
+                          );
+                      }}
+                    />
+                  )}
+                  {tabs
+                    .filter((tab) => isArchitectureDocument(tab.path))
+                    .map((tab) => {
+                      const visible =
+                        tab.path === active &&
+                        visibleMode !== 'source' &&
+                        !showConnections;
+                      return (
+                        <div
+                          key={tab.path}
+                          className="architecture-document"
+                          hidden={!visible}
+                        >
+                          <Suspense
+                            fallback={
+                              <p role="status">
+                                Loading architecture explorer…
+                              </p>
+                            }
+                          >
+                            <ArchitectureExplorer
+                              content={tab.content}
+                              visible={visible}
+                            />
+                          </Suspense>
+                        </div>
+                      );
+                    })}
                 </section>
               </div>
             ) : (
@@ -1091,7 +1292,7 @@ export function App() {
                 onClose={() => setFocusedDiagram(null)}
               />
             )}
-            {selected && showOutline && (
+            {selected && !architecture && showOutline && (
               <section
                 id="document-outline"
                 className="outline-panel"

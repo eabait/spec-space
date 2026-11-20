@@ -100,7 +100,7 @@ svg {
   flex: 1;
 }
 aside {
-  width: 248px;
+  width: var(--explorer-width, 248px);
   flex-shrink: 0;
   background: #f6f7f9;
   border-right: 1px solid #e2e6ed;
@@ -698,6 +698,30 @@ main {
   flex: 1;
   min-height: 0;
 }
+.panel-resizer {
+  position: relative;
+  flex: 0 0 7px;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+.panel-resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+.panel-resizer:hover::after,
+.panel-resizer:focus-visible::after,
+.workspace.is-resizing .panel-resizer::after {
+  background: var(--teal);
+}
+.panel-resizer:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -1px;
+}
 .editor-workspace[hidden],
 .document-toolbar[hidden] {
   display: none;
@@ -1109,8 +1133,12 @@ aside {
 .document-panes {
   background: var(--paper);
 }
+.document-panes.split {
+  --source-width: var(--source-share, 44%);
+}
 .source-pane {
-  flex: 0 0 44%;
+  flex: 0 0 var(--source-width, 44%);
+  min-width: 0;
   border-right: 1px solid var(--line);
   background: #f7f4ec;
 }
@@ -1119,7 +1147,13 @@ aside {
   flex: 1;
 }
 .preview-pane {
+  min-width: 0;
   background: var(--paper);
+}
+.reset-panel-sizes {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
 }
 .pane-label {
   padding: 11px 21px;
@@ -1208,12 +1242,43 @@ aside {
   border-radius: 7px;
 }
 .table-scroll {
+  position: relative;
   max-width: 100%;
   margin: 22px 0;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: thin;
   scrollbar-color: #b5c5bd transparent;
+}
+.table-copy-button {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--muted);
+  background: #fffdf7e8;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.table-copy-button:hover,
+.table-copy-button:focus-visible {
+  color: var(--teal);
+  background: var(--teal-soft);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .markdown table {
   width: max-content;
@@ -1459,7 +1524,7 @@ aside {
   list-style: none;
 }
 .outline-list .outline-list {
-  padding-left: 0;
+  padding-left: 18px;
 }
 .outline-list li {
   margin: 1px 0;
@@ -1469,6 +1534,7 @@ aside {
   min-height: 32px;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   padding: 5px 8px;
   text-align: left;
@@ -1531,6 +1597,9 @@ aside {
   }
   .preview-pane {
     flex-basis: 100%;
+  }
+  .source-resizer {
+    display: none;
   }
   .document-toolbar {
     background: #f7f4ec;

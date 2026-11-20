@@ -12,10 +12,11 @@ export const Editor = forwardRef<
   EditorHandle,
   {
     content: string;
+    architecture?: boolean;
     canEdit?: () => boolean;
     onChange: (content: string) => void;
   }
->(function Editor({ content, onChange, canEdit }, ref) {
+>(function Editor({ content, architecture, onChange, canEdit }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const callback = useRef(onChange);
@@ -54,7 +55,7 @@ export const Editor = forwardRef<
         doc: editorText(raw.current),
         extensions: [
           basicSetup,
-          markdown(),
+          ...(architecture ? [] : [markdown()]),
           EditorView.lineWrapping,
           EditorView.theme({
             '&': {

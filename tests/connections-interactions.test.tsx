@@ -45,11 +45,13 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (command === 'workspace_snapshot') {
       if (backend.failScan) throw new Error('Scan unavailable');
       return {
-        documents: Object.entries(backend.files).map(([path, content]) => ({
-          path,
-          content,
-          revision: content,
-        })),
+        documents: Object.entries(backend.files)
+          .filter(([path]) => /\.(md|markdown)$/i.test(path))
+          .map(([path, content]) => ({
+            path,
+            content,
+            revision: content,
+          })),
         unavailable: [],
         complete: true,
       };
@@ -120,6 +122,24 @@ vi.mock('../src/Preview', async () => {
     }),
   };
 });
+vi.mock('../src/c4/ArchitectureExplorer', async () => {
+  const React = await import('react');
+  return {
+    default: ({ content }: { content: string }) => {
+      const [selected, setSelected] = React.useState(false);
+      return (
+        <div>
+          <p>{content}</p>
+          <button onClick={() => setSelected(true)}>
+            {selected
+              ? 'Architecture element selected'
+              : 'Select architecture element'}
+          </button>
+        </div>
+      );
+    },
+  };
+});
 afterEach(cleanup);
 beforeEach(() => {
   vi.stubGlobal(
@@ -163,6 +183,53 @@ async function start() {
   );
   await screen.findByRole('textbox', { name: 'Test editor' });
 }
+it('routes mixed DSL tabs through existing buffers, conflict guards, and independent explorer sessions', async () => {
+  window.innerWidth = 1400;
+  const original =
+    '\uFEFF// Keep comment\r\nworkspace { model { a = softwareSystem "A" } }';
+  backend.files['model.dsl'] = original;
+  await start();
+  const files = screen.getByRole('navigation', { name: 'Workspace files' });
+  fireEvent.click(within(files).getByRole('button', { name: 'model.dsl' }));
+  await screen.findByRole('button', { name: 'Architecture' });
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Select architecture element' }),
+  );
+  expect(backend.files['model.dsl']).toBe(original);
+  expect(
+    screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled'),
+  ).toBe(true);
+  expect(screen.queryByRole('button', { name: 'Outline' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Source' }));
+  const editor = screen.getByRole('textbox', { name: 'Test editor' });
+  const invalid = `${original}\r\ninvalid edit {`;
+  fireEvent.change(editor, { target: { value: invalid } });
+  backend.failSave = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await screen.findByRole('alert');
+  expect((editor as HTMLTextAreaElement).value).toBe(
+    invalid.replace(/\r\n/g, '\n'),
+  );
+  expect(backend.files['model.dsl']).toBe(original);
+  fireEvent.click(screen.getByRole('tab', { name: 'a.md' }));
+  expect(screen.getByRole('button', { name: 'Outline' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: 'model.dsl' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Architecture' }));
+  expect(
+    screen.getByRole('button', { name: 'Architecture element selected' }),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Reload from disk' }));
+  await screen.findByRole('button', { name: 'Cancel' });
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Source' }));
+  expect(
+    (
+      screen.getByRole('textbox', {
+        name: 'Test editor',
+      }) as HTMLTextAreaElement
+    ).value,
+  ).toBe(invalid.replace(/\r\n/g, '\n'));
+});
 it('navigates headings in split, source and preview without changing the editor buffer', async () => {
   window.innerWidth = 1400;
   const source = '# Title\n\n## Details\n\n# Title\n';

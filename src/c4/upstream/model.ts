@@ -1,0 +1,477 @@
+// Core C4 model types — aligned with Structurizr workspace JSON schema
+
+export type Location = 'Internal' | 'External' | 'Unspecified';
+export type InteractionStyle = 'Synchronous' | 'Asynchronous';
+export type LayoutDirection = 'TB' | 'BT' | 'LR' | 'RL';
+/** The lifecycle statuses c4hero ships with. */
+export type BuiltInElementStatus =
+  'Live' | 'Planned' | 'Deprecated' | 'Removed';
+/** An element's lifecycle status. Open on purpose: the built-ins cannot express
+ *  every lifecycle position a team needs, and a value c4hero does not know must
+ *  never be silently dropped. `string & {}` keeps editor completion on the
+ *  built-ins while accepting a user-declared or file-discovered status.
+ *  See `@/lib/elementStatus` for the vocabulary and validation rules. */
+export type ElementStatus = BuiltInElementStatus | (string & {});
+export type LineStyle = 'Curved' | 'Straight' | 'Orthogonal';
+
+// Runtime guards for the unions above. The DSL parser validates untrusted
+// input against these in two places each (legacy bare keyword + property
+// hoist), so they live next to the type to keep the lists from diverging.
+// ElementStatus is open, so its guard lives in `@/lib/elementStatus`
+// (`normalizeElementStatus`) next to the vocabulary rules it shares.
+export function isInteractionStyle(v: string): v is InteractionStyle {
+  return v === 'Synchronous' || v === 'Asynchronous';
+}
+export function isLineStyle(v: string): v is LineStyle {
+  return v === 'Curved' || v === 'Straight' || v === 'Orthogonal';
+}
+
+// ─── Elements ────────────────────────────────────────────────────────
+
+export interface BaseElement {
+  id: string;
+  /** True while the ID is auto-derived from the name: renaming the element
+   *  re-derives it. Cleared the moment the user edits the ID directly.
+   *  Absent (= pinned) on imported and pre-existing elements — an identifier
+   *  someone wrote in DSL must never be rewritten by a rename. */
+  idIsAuto?: boolean;
+  name: string;
+  description?: string;
+  tags: string[];
+  properties: Record<string, string>;
+  url?: string;
+  status?: ElementStatus;
+  owner?: string;
+  /** `!` directive lines written inside this element's block (e.g. an
+   *  `!include` of its containers). Preserved verbatim, re-emitted first. */
+  directives?: string[];
+  /** See PropertyLayout. */
+  propertyLayout?: PropertyLayout;
+  /** Path (relative to the root workspace file) of the included file that
+   *  declared this element. Absent for root-owned content. Never serialized
+   *  into DSL; used to route writes and to mark read-only sources (TEA-325). */
+  sourcePath?: string;
+}
+
+export interface Person extends BaseElement {
+  type: 'person';
+  location?: Location;
+}
+
+export interface SoftwareSystem extends BaseElement {
+  type: 'softwareSystem';
+  location?: Location;
+  containers: Container[];
+}
+
+export interface Container extends BaseElement {
+  type: 'container';
+  technology?: string;
+  components: Component[];
+}
+
+export interface Component extends BaseElement {
+  type: 'component';
+  technology?: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  elementIds: string[];
+  /** Explicit hierarchy retained from nested Structurizr group blocks.
+   *  Older c4hero workspaces omit this; strict subset membership still lets
+   *  the serializer infer their hierarchy. */
+  parentId?: string;
+  /** See BaseElement.sourcePath. */
+  sourcePath?: string;
+}
+
+export type ModelElement = Person | SoftwareSystem | Container | Component;
+
+// ─── Deployment elements ─────────────────────────────────────────────
+
+export interface DeploymentNode extends BaseElement {
+  type: 'deploymentNode';
+  technology?: string;
+  /** Structurizr `instances` — a number or range like "0..N", kept verbatim */
+  instances?: string;
+  children: DeploymentNode[];
+  infrastructureNodes: InfrastructureNode[];
+  containerInstances: ContainerInstance[];
+  softwareSystemInstances: SoftwareSystemInstance[];
+}
+
+export interface InfrastructureNode extends BaseElement {
+  type: 'infrastructureNode';
+  technology?: string;
+}
+
+/** An instance of a model container running on a deployment node. Instances
+ *  have no name of their own — display data comes from the referenced container. */
+export interface ContainerInstance {
+  id: string;
+  type: 'containerInstance';
+  containerId: string;
+  tags: string[];
+  properties: Record<string, string>;
+  url?: string;
+}
+
+/** An instance of a model software system running on a deployment node. */
+export interface SoftwareSystemInstance {
+  id: string;
+  type: 'softwareSystemInstance';
+  softwareSystemId: string;
+  tags: string[];
+  properties: Record<string, string>;
+  url?: string;
+}
+
+export interface DeploymentEnvironment {
+  id: string;
+  name: string;
+  deploymentNodes: DeploymentNode[];
+  /** See BaseElement.sourcePath. */
+  sourcePath?: string;
+}
+
+export type DeploymentElement =
+  | DeploymentNode
+  | InfrastructureNode
+  | ContainerInstance
+  | SoftwareSystemInstance;
+
+// ─── Relationships ───────────────────────────────────────────────────
+
+export interface Relationship {
+  id: string;
+  sourceId: string;
+  destinationId: string;
+  description?: string;
+  technology?: string;
+  interactionStyle?: InteractionStyle;
+  lineStyle?: LineStyle;
+  url?: string;
+  tags: string[];
+  properties: Record<string, string>;
+  /** See PropertyLayout. */
+  propertyLayout?: PropertyLayout;
+  /** See BaseElement.sourcePath. */
+  sourcePath?: string;
+}
+
+// ─── Views ───────────────────────────────────────────────────────────
+
+export type ViewType =
+  | 'systemLandscape'
+  | 'systemContext'
+  | 'container'
+  | 'component'
+  | 'dynamic'
+  | 'deployment';
+
+export interface ElementInView {
+  id: string;
+  x?: number;
+  y?: number;
+  /** True when the user has manually dragged this node. Marks x/y as
+   *  hand-authored, which is what the sidecar persists. */
+  pinned?: boolean;
+  /** True when the user has locked this node in place. A locked node keeps its
+   *  x/y through a full re-layout (Auto-arrange, layout-direction change) and
+   *  can't be dragged until it's unlocked. Distinct from `pinned`: dragging
+   *  something records a position, it doesn't defend it. */
+  locked?: boolean;
+}
+
+export interface RelationshipInView {
+  id: string;
+  /** Dynamic views: the step's own endpoints, in travel order. A step may
+   *  connect elements at a different granularity than the backing
+   *  relationship (hierarchy-implied match, e.g. step `app -> sys` backed by
+   *  `app -> sys.api`), so the arrow is drawn between these, not the
+   *  relationship's endpoints. */
+  sourceId?: string;
+  destinationId?: string;
+  /** Dynamic views: this step travels AGAINST the model relationship's
+   *  direction (a response/return message — `b -> a` where the model holds
+   *  `a -> b`). Structurizr renders these as reversed arrows. */
+  response?: boolean;
+  /** Dynamic views: sequence label for this interaction ("1", "2", …).
+   *  Interaction order is the array order; this is the rendered label. */
+  order?: string;
+  /** Dynamic views: per-step description overriding the model relationship's. */
+  description?: string;
+}
+
+/** A relationship `exclude "source -> destination"` line of a view, as
+ *  written: each end is an element id, or `*` for any element. */
+export interface RelationshipExclusion {
+  sourceId: string;
+  destinationId: string;
+}
+
+export interface AutoLayout {
+  direction: LayoutDirection;
+  rankSeparation?: number;
+  nodeSeparation?: number;
+}
+
+export interface View {
+  type: ViewType;
+  key: string;
+  /** Import-only alias for layout saved before the parser normalized the key. */
+  originalKey?: string;
+  /** See BaseElement.sourcePath. */
+  sourcePath?: string;
+  /** True when `key` was synthesised by the parser because the DSL omitted one.
+   *  The serializer skips emitting auto keys so the source DSL roundtrips
+   *  byte-identical for views without explicit keys. */
+  autoKey?: boolean;
+  /** True when this entire view was synthesised by the parser because the DSL
+   *  defined no views at all. The serializer skips auto views so the source
+   *  DSL roundtrips unchanged; users still see them on the canvas. */
+  autoView?: boolean;
+  /** View-level layout lock: the whole diagram is frozen — Auto-arrange and
+   *  layout-direction changes are no-ops, and no node can be dragged. Element
+   *  locks stay independent underneath, so unlocking the view restores them.
+   *  A c4hero concept persisted in the sidecar, not the DSL. */
+  locked?: boolean;
+  title?: string;
+  /** True when `title` was not authored but is the view header's positional
+   *  string (`container a "key" "description"`), kept so the canvas has a
+   *  label for the view. Structurizr reads that string as the description
+   *  only, so the serializer writes it back into the header rather than as a
+   *  `title`, which would replace the default title Structurizr renders
+   *  (#233). A `title` in the view body, a rename, a duplicate or an
+   *  unusable view key kept as the label makes the title authored. */
+  autoTitle?: boolean;
+  description?: string;
+  softwareSystemId?: string;
+  containerId?: string;
+  /** Deployment views: the deployment environment name this view renders. */
+  environment?: string;
+  elements: ElementInView[];
+  relationships: RelationshipInView[];
+  /** Model relationship IDs deliberately hidden from this static view. */
+  excludedRelationshipIds?: string[];
+  /** Each `exclude "source -> destination"` line of the view, as written.
+   *  Structurizr applies it to every relationship the view would draw,
+   *  implied ones included, so `* -> *` hides the arrows an `include *`
+   *  view draws between elements whose own relationships are declared
+   *  further down. The canvas applies it to those arrows too, and a save
+   *  writes it back as written instead of one line per model relationship
+   *  it matches (#230). The model relationships it matches are also in
+   *  `excludedRelationshipIds`. */
+  excludedRelationshipExpressions?: RelationshipExclusion[];
+  /** True when the DSL said `include *`. `elements` holds the expansion (plus
+   *  any explicit includes, minus excludes); the serializer writes `include *`
+   *  back, so a save keeps the wildcard live instead of freezing it into an
+   *  id list (#230). */
+  includeAll?: boolean;
+  /** `include *` views: elements hidden on purpose, by an `exclude` line
+   *  after the wildcard that hides them or by hiding them on the canvas. Each
+   *  is written back as `exclude` while it exists and is not shown. An
+   *  element the wildcard would add that the canvas has not picked up yet is
+   *  not hidden, so it gets no line (#230). */
+  excludedElementIds?: string[];
+  /** `include *` views: elements named by an `include` line of their own
+   *  next to the wildcard. Each is written back while it is shown, even when
+   *  the wildcard would add it too (#230). */
+  includedElementIds?: string[];
+  autoLayout?: AutoLayout;
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────
+
+export interface ElementStyle {
+  tag: string;
+  /** See BaseElement.sourcePath. */
+  sourcePath?: string;
+  background?: string;
+  color?: string;
+  shape?: string;
+  fontSize?: number;
+  border?: string;
+  opacity?: number;
+  icon?: string;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface RelationshipStyle {
+  tag: string;
+  /** See BaseElement.sourcePath. */
+  sourcePath?: string;
+  color?: string;
+  thickness?: number;
+  dashed?: boolean;
+  fontSize?: number;
+  opacity?: number;
+}
+
+export interface ViewConfiguration {
+  styles: {
+    elements: ElementStyle[];
+    relationships: RelationshipStyle[];
+  };
+  themes?: string[];
+  /** File the `themes` line came from, when `!include`d. */
+  themesSourcePath?: string;
+}
+
+// ─── Model ───────────────────────────────────────────────────────────
+
+export interface Model {
+  people: Person[];
+  softwareSystems: SoftwareSystem[];
+  relationships: Relationship[];
+  groups: Group[];
+  deploymentEnvironments: DeploymentEnvironment[];
+  /** Model-level DSL properties (`model { properties { } }`). */
+  properties?: Record<string, string>;
+  /** Where each model-level property line was written. See PropertyDeclaration. */
+  propertyDeclarations?: PropertyDeclaration[];
+}
+
+/** One `"key" "value"` line of a workspace- or model-level `properties`
+ *  block, in source order and across every file. The owning `properties`
+ *  record holds the effective values (the last line per key wins, as in
+ *  Structurizr) and is what edits change; this list only records where each
+ *  line was written, so a save puts a value back into its own file and
+ *  position, and a line another file later overrides is not lost. */
+export interface PropertyDeclaration {
+  key: string;
+  /** The value as written on this line. */
+  value: string;
+  /** How many preserved directives of the same block kind precede this line
+   *  in its file (workspace: `workspace` + `workspaceProperties` scope;
+   *  model: `model` + `modelProperties` scope). The serializer re-emits the line at
+   *  that position, so an override keeps its meaning. */
+  slot: number;
+  /** Original file location, used to coalesce repeated inclusion of the same line. */
+  sourceLine?: number;
+  sourceColumn?: number;
+  /** Set when the line came from an `!include`d file. */
+  sourcePath?: string;
+}
+
+/** A `!` line (e.g. `!include shared-props.dsl`) written inside an element's
+ *  or relationship's `properties { }` block. */
+export interface PropertyDirective {
+  raw: string;
+  /** Set when the line came from an `!include`d file. */
+  sourcePath?: string;
+}
+
+/** Where each line of an element's or relationship's `properties { }` blocks
+ *  was written, recorded when any of those blocks holds `!` lines. Those lines
+ *  are kept, and each property line keeps its position relative to them
+ *  (`slot` counts the directives before it in its file), so an included
+ *  value is neither lost nor copied into the root. Without `!` lines the
+ *  block is written from `properties` alone. */
+export interface PropertyLayout {
+  declarations: PropertyDeclaration[];
+  directives: PropertyDirective[];
+}
+
+// ─── Workspace ───────────────────────────────────────────────────────
+
+export type WorkspaceScope = 'softwaresystem' | 'landscape' | 'none';
+
+/** A `!` preprocessor line (`!include`, `!const`, `!var`, `!identifiers`,
+ *  `!docs`, `!adrs`, …) that c4hero does not evaluate but must never lose.
+ *  Kept verbatim and re-emitted at the top of the block it came from, in
+ *  original order. */
+export interface WorkspaceDirective {
+  /** `workspaceProperties` / `modelProperties`: written inside that block's
+   *  `properties { }`. */
+  scope:
+    'workspace' | 'workspaceProperties' | 'model' | 'modelProperties' | 'views';
+  /** The whole line as written, trimmed. */
+  raw: string;
+  /** Model scope only: the group block the line was written in. */
+  groupId?: string;
+  /** Model scope only: id of the element / environment / group declared just
+   *  before this line in the same block. The serializer re-emits the line
+   *  right after that declaration, so a `!include` that references earlier
+   *  root content keeps its single-pass ordering. Absent = top of the block. */
+  after?: string;
+  /** Set when the line came from an `!include`d file; never re-emitted into
+   *  the root. See BaseElement.sourcePath. */
+  sourcePath?: string;
+}
+
+export interface IncludedFile {
+  /** Path relative to the root workspace file, as written in `!include`. */
+  path: string;
+  /** True when c4hero can write this file back as a plain model fragment. */
+  writable: boolean;
+  /** Why it is read-only, for the UI. */
+  reason?: string;
+  /** The file's text as read at load time. Lets the code pane re-stitch the
+   *  full document without touching disk. */
+  text?: string;
+}
+
+/** What a stored layout entry is *for*, written alongside it so the entry
+ * never has to be re-identified from the key it happens to be filed under
+ * (TEA-345). A derived view key is numbered by declaration order, so it moves
+ * when a same-scope sibling comes or goes; the view's type and scope do not.
+ *
+ * `key` is present when the DSL author wrote it or a save writes a generated
+ * key to preserve the slot before a header description. An unnamed view of
+ * the same scope otherwise has a distinct identity. */
+export interface StoredViewIdentity {
+  key?: string;
+  type: ViewType;
+  softwareSystemId?: string;
+  containerId?: string;
+  environment?: string;
+  /** Complete view membership when saved, including nodes with no persisted
+   *  position. Older identities omit this and use the positioned nodes. */
+  elementIds?: string[];
+}
+
+/** Layout retained independently of whether a view or element is currently visible.
+ * Uses the version-1 sidecar shape; no on-disk migration is needed. */
+export interface SavedViewLayout {
+  /** The view this layout belongs to. Absent in entries written before
+   *  TEA-345, which are matched by key instead. */
+  view?: StoredViewIdentity;
+  locked?: boolean;
+  elements?: Record<
+    string,
+    Pick<ElementInView, 'x' | 'y' | 'pinned' | 'locked'>
+  >;
+}
+
+export interface Workspace {
+  /** Last loaded/carried layout. Present entries are overlaid on extraction;
+   * absent entries survive. An empty map still requests clearing the old file. */
+  savedLayout?: Record<string, SavedViewLayout>;
+  name?: string;
+  description?: string;
+  scope?: WorkspaceScope;
+  /** Workspace-level DSL properties, distinct from model/element properties. */
+  properties?: Record<string, string>;
+  /** Where each workspace-level property line was written. */
+  propertyDeclarations?: PropertyDeclaration[];
+  /** Preserved preprocessor directives (TEA-325 phase A). Absent when none. */
+  directives?: WorkspaceDirective[];
+  /** Files pulled in through `!include` when this workspace was loaded from a
+   *  folder (TEA-325 phase B). Content from a writable file is saved back to
+   *  that file; a read-only file's content is shown but never modified. */
+  includedFiles?: IncludedFile[];
+  model: Model;
+  views: {
+    systemLandscapeViews: View[];
+    systemContextViews: View[];
+    containerViews: View[];
+    componentViews: View[];
+    dynamicViews: View[];
+    deploymentViews: View[];
+    configuration: ViewConfiguration;
+  };
+}

@@ -1,4 +1,4 @@
-use super::{err, list_entries, read_document, Document};
+use super::{err, list_entries, markdown, read_document, Document};
 use serde::Serialize;
 use std::path::Path;
 
@@ -65,7 +65,7 @@ fn scan_with_limits(
             });
             break;
         }
-        let entries = match list_entries(root, &directory) {
+        let entries = match list_entries(root, &directory, markdown) {
             Ok(entries) => entries,
             Err(message) if !directory.is_empty() => {
                 snapshot.complete = false;
@@ -140,7 +140,7 @@ pub fn check_target(root: &Path, path: String) -> Target {
         status: "unavailable",
         canonical: None,
     };
-    if excluded {
+    if excluded || !super::markdown(Path::new(&path)) {
         result.status = "excluded";
         return result;
     }

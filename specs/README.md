@@ -27,6 +27,12 @@
 
 - [018 — GitHub release workflow](018-github-release-workflow.md): implemented on 2026-10-24; local and hosted macOS build/draft validation recorded in plan 018.
 
+- [019 — Resize the three main panels](019-resizable-main-panels.md): complete and user-validated on 2026-10-27; see plan 019.
+
+- [020 — Copy Markdown tables and clarify outline hierarchy](020-copy-markdown-tables-and-outline-indentation.md): proposed on 2026-10-27; acceptance pending.
+
+- [021 — Native Structurizr architecture explorer](021-c4hero-integration.md): code delivered and automated checks passed on 2026-11-20; native acceptance remains pending. The accepted attachment's already-used ID 019 was remapped to 021.
+
 The baseline predating this workflow is documented in [SPEC.md](../SPEC.md). The repository was checked before assigning 009; no SPEC or plan numbered 009 existed.
 
 Follow [SDD.md](../SDD.md). Create `NNN-name.md` with this minimum structure:

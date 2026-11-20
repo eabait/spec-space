@@ -1,7 +1,17 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
 import { expect, it } from 'vitest';
-import { Preview } from '../src/Preview';
+import { Preview, tableMarkdownFromSource } from '../src/Preview';
+
+it('extracts the authored table block without reconstructing Markdown', () => {
+  const source =
+    '# Intro\n\n| A | B |\n| --- | :---: |\n| `x` | escaped \\| value |\n\n## End';
+  const start = source.indexOf('| A |');
+  const end = source.indexOf('\n\n## End');
+  expect(tableMarkdownFromSource(source, start, end)).toBe(
+    '| A | B |\n| --- | :---: |\n| `x` | escaped \\| value |',
+  );
+});
 
 it('keeps GFM table content inside a labelled, locally scrollable region', () => {
   render(

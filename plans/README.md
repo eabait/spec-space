@@ -26,6 +26,12 @@
 
 - [018 — GitHub release workflow](018-github-release-workflow.md): complete; hosted Apple Silicon/Intel builds and draft preparation passed on 2026-10-24.
 
+- [019 — Resize the three main panels](019-resizable-main-panels.md): complete and user-validated on 2026-10-27.
+
+- [020 — Copy Markdown tables and clarify outline hierarchy](020-copy-markdown-tables-and-outline-indentation.md): in progress; SPEC accepted on 2026-10-27.
+
+- [021 — Native Structurizr architecture explorer](021-c4hero-integration.md): in progress; code delivered with 151 frontend and 10 Rust tests passing, native acceptance pending.
+
 Each plan corresponds to an accepted SPEC in [specs/](../specs/README.md).
 
 [Proposal 002](../specs/002-assisted-artifact-inventory.md) and its pilot are deferred while Horizon 1 authoring is the active focus. It has no implementation plan. If resumed, resolve its open decisions and record acceptance before creating the matching plan.

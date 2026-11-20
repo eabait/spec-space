@@ -1,6 +1,6 @@
 # Project status — start here
 
-Updated: 2026-10-23. SpecSpace Desktop 0.1.0, local macOS application.
+Updated: 2026-11-20. SpecSpace Desktop 0.1.0, local macOS application.
 
 ## Resume development
 
@@ -35,6 +35,15 @@ Bulk tab closing is implemented through SPEC 004. Mermaid-syntax PNG export and 
 [Proposal 002](specs/002-assisted-artifact-inventory.md) and its pilot are deferred. The assisted-inventory direction remains in VISION for future human fixed-price preparation; no automatic estimation is planned. The selected iCloud Drive/Test input and suggested EP-01 slice are retained for possible resumption. The npm audit found existing dependency advisories (versions unchanged from baseline); follow-up details are in plan 001. Do not publish or commit implicitly.
 
 ## Latest task
+
+2026-11-20: SPEC 021 code delivery passed 151 frontend tests, the production build, and 10 Rust tests. The user explicitly authorized merging and pushing `main`. The implementation remains In progress pending native interaction checks at normal size and 850 × 580, observed offline/network behavior, and larger-model timings. Details and current validation evidence are in [plan 021](plans/021-c4hero-integration.md).
+
+
+2026-11-19: Implementation of [SPEC 021](specs/021-c4hero-integration.md), the native Structurizr architecture explorer, is in progress on `codex/structurizr-explorer`. The accepted attachments dated 2026-11-16 originally used ID 019; existing increments 019 and 020 were preserved and the next available ID 021 was assigned. DSL discovery, protected reading/saving/session restoration, current-buffer architecture routing, worker-based parsing/layout, view navigation, search/inspection, diagnostics, and representative examples are delivered locally. Validation and native QA are being recorded in [plan 021](plans/021-c4hero-integration.md). Existing uncommitted panel/table/outline changes remain in place. Next unused increment ID is 022.
+
+2026-10-27: SPEC 020 was accepted with “aceptada” and implemented locally. It adds a read-only icon-only Copy Markdown action that copies the authored table block from the active buffer and makes nested outline titles left-aligned with visible heading-level indentation. 56 frontend tests, build, format checks, diff checks, and the release macOS bundle passed. Packaged-app copy/paste and outline inspection remain outstanding; see plan 020. Both increment directories were enumerated; next unused ID: 021. SPEC 019 is complete and user-validated.
+
+2026-10-27: SPEC 019 was accepted with “aceptado”, implemented, tested by the user, and accepted with “probado y aceptado el cambio”. Explorer and Source/Preview separators now support bounded pointer and keyboard resizing, session-only preferences, reset to defaults, and clean compact-mode behavior while preserving mounted editor state. Frontend tests (55), build, format checks, diff checks, release macOS bundle, and manual packaged-app validation passed. No commit, publish, or deployment was performed. SPEC 017 remains independently accepted and pending.
 
 2026-10-24: SPEC 018 is implemented. After pushing its commits to `main`, hosted run 40109531800 passed tag/version validation, Apple Silicon and Intel builds, artifact transfer, and draft-release preparation for `v0.1.0`. Both architecture artifacts were recorded against commit `d1cffd3`; the workflow did not publish the draft. Native launch and unsigned/unnotarized distribution remain explicit human review steps. See plan 018.
 

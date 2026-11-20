@@ -1,4 +1,8 @@
 export type Change = { from: number; to: number; insert: string };
+export function isArchitectureDocument(path: string) {
+  return /\.dsl$/i.test(path);
+}
+
 export function editorText(raw: string) {
   return raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 }

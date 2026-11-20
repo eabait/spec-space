@@ -1,6 +1,6 @@
 # Current architecture
 
-Updated: 2026-10-21, including focused diagram viewing and direct connection inspection (increments 013–015). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
+Updated: 2026-11-19, including the native Structurizr explorer (increment 021). Local desktop application built with Tauri 2, React 19, TypeScript, and Vite.
 
 ## Components and boundaries
 
@@ -38,7 +38,7 @@ Opening a file returns UTF-8 text and its SHA-256 revision. The editor applies c
 
 GFM tables render inside labelled, keyboard-focusable local overflow regions. CSS applies content-based table sizing and minimum cell widths so narrow columns remain readable while wide tables do not expand the document pane. Preview left-aligns all header and body cell text for scanability; authored GFM alignment markers remain unchanged in the Markdown source.
 
-`src/styles.css` owns the shared visual tokens and responsive presentation. `src/App.tsx` derives a compact effective pane mode from viewport width while preserving the selected mode and mounted editor state. Tauri's configured platform icons are generated from `src-tauri/icons/source.svg`.
+`src/styles.css` owns the shared visual tokens and responsive presentation. `src/App.tsx` derives a compact effective pane mode from viewport width while preserving the selected mode and mounted editor state. The workspace owns transient Explorer and Source/Preview size preferences; pointer-capture separators clamp them to usable bounds, expose keyboard adjustment, and reset to responsive defaults. These preferences are not part of session metadata. Tauri's configured platform icons are generated from `src-tauri/icons/source.svg`.
 
 `tests/connections.test.ts` covers Markdown semantics and resolution. `tests/connections-interactions.test.tsx` uses a simulated IPC boundary to cover saved/dirty buffers, navigation, save/scan failures, retries, refresh, and workspace switching. Native checks supplement these tests; they do not replace filesystem tests in Rust.
 
@@ -61,6 +61,16 @@ While an action is pending, background UI is inert. CodeMirror checks the synchr
 ## Preview and security
 
 The preview never changes the source. HTML is disabled. Pele loads lazily to render Mermaid syntax; diagram links and images are disabled, and SVG is sanitized with DOMPurify, excluding links, images, and `foreignObject`. CSP restricts remote resources. See SPEC for the exact product scope and limits.
+
+## Native Structurizr exploration
+
+`src/c4/upstream` contains a licensed, pinned C4 Hero parser dependency closure. `adapter.ts` validates the workspace envelope, normalizes diagnostics, identifies supported views, and projects declared and implied relationships. It calls the upstream parser and default-view generator directly. Its import closure contains the pure model and parsing helpers.
+
+`worker.ts` parses and lays out derived architecture data off the UI thread. Requests and results carry a monotonically increasing per-document source version, and layout results also carry a view key. `ArchitectureExplorer.tsx` rejects outdated results, retains a labelled stale diagram for invalid edits, and keeps selection, viewport, search, and navigation history inside each mounted document session. The explorer loads lazily through App. Explicit text saves and pending-change guards continue through the existing App lifecycle.
+
+`layout.ts` uses Dagre for independent sibling layouts, working outward through nested system, container, and group boundaries. Node identity and view membership remain independent of coordinates. React Flow renders read-only nodes and relationships with local visible controls and an accessible inspector. The adapter excludes external resources, unresolved includes, and executable directives from processing and exposes incomplete-coverage diagnostics. The runtime gains a same-origin bundled worker and no remote permissions.
+
+Rust accepts `.dsl` files through the existing bounded reader, revision checks, atomic saver, and clean-tab session validation. Explorer enumeration recognizes Markdown and DSL. Connections supplies a separate Markdown-only enumeration predicate, and Markdown creation retains its original extension restriction. See plan 021 for validation evidence.
 
 ## Maintainability
 

@@ -234,7 +234,40 @@ const headingComponents: Components = {
   ),
 };
 
-function MarkdownTable({ children }: { children?: ReactNode }) {
+export function tableMarkdownFromSource(
+  source: string,
+  start?: number,
+  end?: number,
+) {
+  if (start == null || end == null) return '';
+  return source.slice(start, end);
+}
+
+function MarkdownTable({
+  children,
+  source,
+  node,
+}: {
+  children?: ReactNode;
+  source: string;
+  node?: {
+    position?: { start?: { offset?: number }; end?: { offset?: number } };
+  };
+}) {
+  const [feedback, setFeedback] = useState('');
+  const tableSource = tableMarkdownFromSource(
+    source,
+    node?.position?.start?.offset,
+    node?.position?.end?.offset,
+  );
+  async function copyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(tableSource);
+      setFeedback('Markdown copied');
+    } catch {
+      setFeedback('Copy failed');
+    }
+  }
   return (
     <div
       className="table-scroll"
@@ -242,6 +275,16 @@ function MarkdownTable({ children }: { children?: ReactNode }) {
       aria-label="Scrollable table"
       tabIndex={0}
     >
+      <button
+        className="table-copy-button"
+        type="button"
+        title="Copy Markdown table"
+        aria-label="Copy Markdown table"
+        onClick={() => void copyMarkdown()}
+      >
+        <Copy size={14} />
+        <span className="sr-only">{feedback}</span>
+      </button>
       <table>{children}</table>
     </div>
   );
@@ -301,7 +344,11 @@ export const Preview = forwardRef<
         skipHtml
         components={{
           ...headingComponents,
-          table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
+          table: ({ children, node }) => (
+            <MarkdownTable source={content.replace(/^\uFEFF/, '')} node={node}>
+              {children}
+            </MarkdownTable>
+          ),
           th: ({ children, node: _node, style, ...props }) => (
             <th {...props} style={{ ...style, textAlign: 'left' }}>
               {children}
